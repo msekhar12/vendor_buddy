@@ -816,6 +816,31 @@ if (dgForm) {
   });
 }
 
+const vProbeBtn = document.getElementById("vendor-probe-btn");
+const vProbeInp = document.getElementById("vendor-probe-input");
+const vProbeOut = document.getElementById("vendor-probe-out");
+
+if (vProbeBtn && vProbeInp && vProbeOut) {
+  vProbeBtn.addEventListener("click", async () => {
+    const q = (vProbeInp.value || "").trim();
+    if (!q) return;
+    vProbeOut.textContent = "Resolving…";
+    try {
+      const resp = await fetch(
+        `/api/vendor-resolve?q=${encodeURIComponent(q)}`,
+      );
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      vProbeOut.textContent = JSON.stringify(data, null, 2);
+    } catch (e) {
+      vProbeOut.textContent = `Error: ${e.message}`;
+    }
+  });
+  vProbeInp.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") vProbeBtn.click();
+  });
+}
+
 /* ============================================================
    Utilities
    ============================================================ */

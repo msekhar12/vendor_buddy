@@ -13,11 +13,12 @@ Query shapes better served by Phase 2 add-on A (structured facts DB):
   - Numeric filter:   "vendors with price under 500", "purity >= 99%"
 """
 import re
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 from . import tfidf_store, vector_store
 from .config import DOC_STORE
 from .llm_client import chat as llm_chat
+from .vendor_index import get_vendor_index
 
 # ---------- Prompts ----------
 
@@ -137,22 +138,53 @@ def _list_vendors() -> list[str]:
     return sorted(out)
 
 
-def _detect_vendor(query: str) -> str | None:
-    """Match query text against known vendor folder names.
-    Returns the folder name whose word-set most fully appears in the query."""
-    vendors = _list_vendors()
-    if not vendors:
+
+
+
+def _detect_vendor(query: str) -> Optional[str]:
+    """
+    Look for a vendor mention inside a free-text query.
+
+    Strategy:
+      1. Try the whole query as a candidate — usually wrong but cheap.
+      2. Try each capitalised phrase in the query (proper-noun heuristic).
+      3. Try each n-gram of length 2-4 words.
+      Return the highest-confidence hit above the resolver's threshold.
+    """
+    idx = get_vendor_index()
+    q = query.strip()
+    if not q:
         return None
-    ql = query.lower()
-    best = None
-    best_len = 0
-    for v in vendors:
-        v_words = v.replace("_", " ").lower().split()
-        if all(w in ql for w in v_words):
-            if len(v_words) > best_len:
-                best_len = len(v_words)
-                best = v
-    return best
+
+    candidates: list[str] = []
+
+    # Capitalised phrases: consecutive Capitalised-Words.
+    caps = re.findall(r"(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)", q)
+    candidates.extend(caps)
+
+    # 2-, 3-, 4-word windows.
+    words = q.split()
+    for n in (4, 3, 2):
+        for i in range(len(words) - n + 1):
+            candidates.append(" ".join(words[i : i + n]))
+
+    # De-duplicate while preserving order.
+    seen = set()
+    ordered = []
+    for c in candidates:
+        cl = c.lower()
+        if cl not in seen:
+            seen.add(cl)
+            ordered.append(c)
+
+    best: Optional[tuple[str, float]] = None
+    for c in ordered:
+        r = idx.resolve(c)
+        if r.canonical:
+            if best is None or r.confidence > best[1]:
+                best = (r.canonical, r.confidence)
+
+    return best[0] if best else None
 
 
 # ---------- Query expansion ----------

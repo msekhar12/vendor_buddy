@@ -39,6 +39,7 @@ from .manifest import (
 )
 from .qa import answer as qa_answer
 from .storage import LocalDriver
+from .vendor_index import get_vendor_index, refresh_vendor_index
 
 # ================================================================
 # App + storage
@@ -94,7 +95,7 @@ async def upload(
         "uploaded_at":  datetime.now(timezone.utc).isoformat(timespec="seconds"),  # noqa: UP017
     })
     background.add_task(index_document, path, vendor, date, labels)
-
+    refresh_vendor_index()
     return {"status": "stored", "path": str(path), "hash": file_hash,
             "labels": labels}
 
@@ -359,6 +360,7 @@ def delete_vendor(vendor: str):
     n_chroma = vector_store.remove_by_vendor(vendor)
     n_tfidf  = tfidf_store.remove_by_vendor(vendor)
     shutil.rmtree(vendor_root)
+    refresh_vendor_index()
 
     return {"status": "deleted", "vendor": vendor,
             "chroma_chunks_removed": n_chroma,
@@ -488,6 +490,31 @@ def debug_gate(
     out["final_verdict"] = "REJECTED · off_topic"
     return out
 
+@app.get("/api/vendor-resolve")
+def api_vendor_resolve(q: str):
+    """Resolve a raw vendor mention. Useful for the Debug tab."""
+    idx = get_vendor_index()
+    r = idx.resolve(q)
+    return {
+        "query": q,
+        "canonical": r.canonical,
+        "confidence": round(r.confidence, 3),
+        "method": r.method,
+        "candidates": [
+            {"vendor": v, "score": round(s, 3)} for v, s in r.candidates
+        ],
+    }
+
+
+@app.post("/api/vendor-alias")
+def api_vendor_alias(alias: Annotated[str, Form()], canonical: Annotated[str, Form()]):
+    """Teach the resolver a new alias like 'nirmala chem' -> canonical."""
+    idx = get_vendor_index()
+    try:
+        idx.add_alias(alias, canonical)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"status": "added", "alias": alias, "canonical": canonical}
 
 # ================================================================
 # Static web UI

@@ -1075,3 +1075,36 @@ button.danger:hover {
   color: #6c757d;
   margin-top: 10px;
 }
+
+.probe-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.probe-row input[type="text"] {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #d8dee6;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+}
+.probe-row input[type="text"]:focus {
+  outline: none;
+  border-color: #1a3d6d;
+  box-shadow: 0 0 0 2px rgba(26, 61, 109, 0.15);
+}
+.probe-out {
+  background: #0f1720;
+  color: #d6deeb;
+  padding: 12px 14px;
+  border-radius: 6px;
+  font-family: "JetBrains Mono", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-x: auto;
+  max-height: 300px;
+  min-height: 40px;
+  margin: 0 0 20px;
+  white-space: pre;
+}
