@@ -1,0 +1,30 @@
+{
+  "vendor": "Associated Scientific Company",
+  "date": "2026-09-01",
+  "docs": [
+    {
+      "filename": "SQ-2949 Density.pdf",
+      "labels": [
+        "quote",
+        "pricing_schedule"
+      ],
+      "label_source": "user_updated",
+      "sha256": "c77067333cf0f79c16e269d2a69efa0cc0ea0178baa0be5708e877a18f108c2a",
+      "size_bytes": 287749,
+      "uploaded_by": "priya@acme.in",
+      "uploaded_at": "2026-09-02T04:45:47+00:00",
+      "updated_at": "2026-09-04T00:16:14+00:00"
+    },
+    {
+      "filename": "SQ-2889-Density.pdf",
+      "labels": [
+        "quote"
+      ],
+      "label_source": "user",
+      "sha256": "014b0d0c33a95620fd9cb4f333e46787733f946a16875bebac1a695951d8bedd",
+      "size_bytes": 293904,
+      "uploaded_by": "priya@acme.in",
+      "uploaded_at": "2026-09-02T04:46:53+00:00"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "vendor": "Aditya Lab Solutions",
+  "date": "2026-09-03",
+  "docs": [
+    {
+      "filename": "aditya_lab_solutions_quote.pdf",
+      "labels": [
+        "quote",
+        "other"
+      ],
+      "label_source": "user",
+      "sha256": "d6c1404bffbe3b2072ccc47bcaf83b170b016f8136d202d27c9d98a875da7a20",
+      "size_bytes": 5694,
+      "uploaded_by": "priya@acme.in",
+      "uploaded_at": "2026-09-04T00:34:01+00:00"
+    }
+  ]
+}

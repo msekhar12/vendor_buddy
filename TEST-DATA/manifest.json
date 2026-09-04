@@ -1,0 +1,40 @@
+{
+  "vendor": "Rajshree Fastners",
+  "date": "2026-09-01",
+  "docs": [
+    {
+      "filename": "iso_9001_cert.pdf",
+      "labels": [
+        "iso_9001_certification"
+      ],
+      "label_source": "user",
+      "sha256": "9684f5e25d01883f918519f26b847137ba784edac47802b8f5bdc230acce8ba5",
+      "size_bytes": 1671,
+      "uploaded_by": "priya@acme.in",
+      "uploaded_at": "2026-09-02T01:02:08+00:00"
+    },
+    {
+      "filename": "quote_hex_bolt.pdf",
+      "labels": [
+        "pricing_schedule"
+      ],
+      "label_source": "user_updated",
+      "sha256": "281381f286532906dcc1b59dcd50b704ef694188f291adf5650f78d5c9909119",
+      "size_bytes": 1872,
+      "uploaded_by": "priya@acme.in",
+      "uploaded_at": "2026-09-02T01:02:31+00:00",
+      "updated_at": "2026-09-02T13:11:22+00:00"
+    },
+    {
+      "filename": "mtc_ss304.pdf",
+      "labels": [
+        "chemical_composition"
+      ],
+      "label_source": "user",
+      "sha256": "031f6d4dc576e648924d84b68d22dc569f23dff5108e36d27c3a58b82b1cb7de",
+      "size_bytes": 1649,
+      "uploaded_by": "priya@acme.in",
+      "uploaded_at": "2026-09-02T01:03:35+00:00"
+    }
+  ]
+}

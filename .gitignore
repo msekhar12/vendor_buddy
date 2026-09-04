@@ -1,0 +1,114 @@
+# ============================================================
+# CIVSA · .gitignore
+# ============================================================
+
+# ---- Python -------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+build/
+dist/
+*.egg
+*.egg-info/
+.eggs/
+wheels/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Testing / linting caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ---- Secrets & config ---------------------------------------
+# Never commit API keys, .env files, or credentials.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+groq_api_key*
+ollama_api_key*
+
+# ---- CIVSA runtime data -------------------------------------
+# The document corpus — uploaded PDFs stored under vendor/date/filename.
+# Confirm the exact folder name in civsa/config.py (STORAGE.root).
+storage/
+data/
+corpus/
+docs_storage/
+
+# ChromaDB persistent index.
+chroma_db/
+.chroma/
+chroma_data/
+civsa_chroma/
+
+# TF-IDF store pickles.
+*.pkl
+tfidf_store/
+tfidf_index/
+
+# SQLite (Phase 2 structured facts DB).
+*.sqlite
+*.sqlite3
+*.db
+!schema.sql            # keep migrations / schemas in git
+
+# Query gate model artifacts (retrainable, don't check in).
+gate_model/
+gate_data/*.jsonl
+!gate_data/README.md   # keep the readme
+
+# Chunk debug dumps, exports, ad-hoc scratch.
+scratch/
+tmp/
+_out/
+*.log
+
+# ---- ML model caches ----------------------------------------
+# Sentence-transformers and HuggingFace cache directories that some
+# setups place inside the project rather than ~/.cache.
+.cache/
+models/
+hf_cache/
+sentence-transformers/
+
+# NLTK data (Snowball stemmer downloads).
+nltk_data/
+
+# ---- Sample / test artifacts --------------------------------
+# Test PDFs generated for the corpus — regenerable, keep local only.
+sample_quotes/
+
+# ---- Editor / IDE -------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ---- Frontend (if you ever add a build step) ----------------
+node_modules/
+.parcel-cache/
+.next/
+.turbo/

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CIVSA · Procurement Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">◆</span>
+        <span class="brand-name">CIVSA</span>
+        <span class="brand-tag"
+          >Contract Intelligence &amp; Vendor Scoring</span
+        >
+      </div>
+      <nav class="tabs" role="tablist">
+        <button
+          class="tab active"
+          data-tab="upload"
+          role="tab"
+          aria-selected="true"
+        >
+          Upload
+        </button>
+        <button class="tab" data-tab="ask" role="tab" aria-selected="false">
+          Ask
+        </button>
+        <button class="tab" data-tab="vendors" role="tab" aria-selected="false">
+          Vendors
+        </button>
+        <button class="tab" data-tab="debug" role="tab" aria-selected="false">
+          Debug
+        </button>
+      </nav>
+    </header>
+    <main>
+      <!-- ================= UPLOAD TAB ================= -->
+      <section id="upload" class="panel active" role="tabpanel">
+        <h2>Upload documents</h2>
+        <p class="hint">
+          Add procurement documents to the corpus. Assign labels so the
+          retriever can narrow searches by topic.
+        </p>
+
+        <div class="upload-controls">
+          <button type="button" class="btn btn-primary" id="browse-btn">
+            Browse files…
+          </button>
+          <input type="file" id="file-input" accept=".pdf,.txt,.md" hidden />
+          <span class="hint-inline"
+            >PDF, TXT, or MD. One document at a time.</span
+          >
+        </div>
+
+        <div id="upload-staging" hidden></div>
+
+        <h3 class="section-heading">
+          Upload history <span class="session-note">(this session)</span>
+        </h3>
+        <div id="upload-log" class="upload-log">
+          <p class="empty">No uploads yet. Pick a file above to get started.</p>
+        </div>
+      </section>
+
+      <!-- ================= ASK TAB ================= -->
+      <section id="ask" class="panel" role="tabpanel">
+        <h1>Ask a question</h1>
+        <p class="lede">
+          Ask in plain English. The tool routes to one of five intents and
+          answers from your document store, with citations.
+        </p>
+
+        <form id="askform" class="askform">
+          <input
+            type="text"
+            id="query"
+            placeholder="e.g. Which vendors have ISO 9001 certification?"
+            autocomplete="off"
+            required
+          />
+          <button type="submit">Ask</button>
+        </form>
+
+        <div class="examples">
+          <span class="examples-label">Try:</span>
+          <button
+            class="chip"
+            data-q="What did Rajshree quote for M10 x 40 hex bolts?"
+          >
+            quote for hex bolts
+          </button>
+          <button
+            class="chip"
+            data-q="Which vendors have ISO 14001 certification?"
+          >
+            ISO 14001 holders
+          </button>
+          <button class="chip" data-q="Compare quoted prices for hex bolts.">
+            compare prices
+          </button>
+        </div>
+
+        <div id="answer" class="answer"></div>
+      </section>
+
+      <!-- ================= VENDORS TAB ================= -->
+      <section id="vendors" class="panel" role="tabpanel">
+        <h1>Vendors</h1>
+        <p class="lede">
+          Every vendor with at least one uploaded document. Click a folder to
+          expand.
+        </p>
+        <div id="vendorlist" class="vendorlist"></div>
+      </section>
+      <!-- ================= DEBUG TAB ================= -->
+      <section id="debug" class="panel" role="tabpanel">
+        <h1>Debug</h1>
+        <p class="lede">
+          Inspect what's in the indexes, probe TF-IDF + Chroma directly, and see
+          how the gate rules on a query. Not intended for production use.
+        </p>
+
+        <div class="debug-section">
+          <h3>Corpus stats</h3>
+          <div id="debug-stats" class="card"></div>
+          <button id="refresh-stats" class="chip" style="margin-top: 8px">
+            Refresh
+          </button>
+        </div>
+
+        <div class="debug-section">
+          <h3>Query probe · TF-IDF and Chroma with scores</h3>
+          <form id="debug-query-form">
+            <input
+              type="text"
+              id="debug-query"
+              placeholder="Query to test..."
+            />
+            <input
+              type="text"
+              id="debug-labels"
+              placeholder="Label filter (comma-separated, optional)"
+              style="max-width: 280px"
+            />
+            <button type="submit">Probe</button>
+          </form>
+          <div id="debug-query-results"></div>
+        </div>
+
+        <div class="debug-section">
+          <h3>Gate probe · what each stage decided</h3>
+          <form id="debug-gate-form">
+            <input
+              type="text"
+              id="debug-gate-query"
+              placeholder="Query to run through the gate..."
+            />
+            <button type="submit">Probe</button>
+          </form>
+          <div id="debug-gate-results"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer>CIVSA · Phase 1 · IIIT Dharwad</footer>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
