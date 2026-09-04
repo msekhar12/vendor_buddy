@@ -832,3 +832,31 @@ function escapeHTML(s) {
       })[c],
   );
 }
+
+const dropZone = document.getElementById("drop-zone");
+if (dropZone && fileInput) {
+  ["dragenter", "dragover"].forEach((evt) =>
+    dropZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.add("dragging");
+    }),
+  );
+  ["dragleave", "drop"].forEach((evt) =>
+    dropZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.remove("dragging");
+    }),
+  );
+  dropZone.addEventListener("drop", (e) => {
+    const files = e.dataTransfer?.files;
+    if (files && files.length) {
+      // Route the first file through the same change-handler pipeline
+      const dt = new DataTransfer();
+      dt.items.add(files[0]);
+      fileInput.files = dt.files;
+      fileInput.dispatchEvent(new Event("change"));
+    }
+  });
+}

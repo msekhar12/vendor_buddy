@@ -1,0 +1,17 @@
+{
+  "vendor": "Nirmala Chemicals",
+  "date": "2026-09-03",
+  "docs": [
+    {
+      "filename": "nirmala_chemicals_quote.pdf",
+      "labels": [
+        "quote"
+      ],
+      "label_source": "user",
+      "sha256": "f3d8dad066bc9dad9d3965d70293f51f35877fb55c644c5da2d61d027109c610",
+      "size_bytes": 5822,
+      "uploaded_by": "anonymous",
+      "uploaded_at": "2026-09-04T04:09:58+00:00"
+    }
+  ]
+}
