@@ -1,0 +1,17 @@
+{
+  "vendor": "Gangotri Reagents",
+  "date": "2026-09-05",
+  "docs": [
+    {
+      "filename": "gangotri_reagents_quote.pdf",
+      "labels": [
+        "quote"
+      ],
+      "label_source": "user",
+      "sha256": "0331c724544c42776f73eb6c138a9e2538ef06d7a02e04887c38b4d377dc3cc9",
+      "size_bytes": 5755,
+      "uploaded_by": "anonymous",
+      "uploaded_at": "2026-09-05T15:02:41+00:00"
+    }
+  ]
+}

@@ -9,6 +9,7 @@ No intent classification - retrieval and generation are now handled by qa.py
 without needing an intent label.
 """
 from . import rules, domain, llm_intent
+from .rules import looks_like_procurement
 
 REFUSALS = {
     "empty":        "Empty query. Please type a question.",
@@ -27,7 +28,15 @@ def process(query: str, user: str = "anonymous") -> dict:
     if not ok:
         return {"allowed": False, "reason": reason,
                 "message": REFUSALS[reason]}
-
+    
+    # ---- NEW: fast-path bypass ----
+    # If the query obviously contains procurement vocabulary, skip the
+    # classifier and the LLM tie-break entirely.
+    if looks_like_procurement(query):
+        print("[gate] fast-path: obvious procurement, bypassing classifier",
+              flush=True)
+        return {"allowed": True, "route_method": "obvious_procurement_vocab"}
+    
     # Stage 2 - fast in-domain classifier
     in_domain, p_dom = domain.is_in_domain(query)
     if in_domain:

@@ -17,6 +17,9 @@ MODEL_DIR  = ROOT / "models"        # cached sentence-BERT
 EMBED_MODEL_PATH = str(MODEL_DIR / "all-MiniLM-L6-v2")
 EMBED_DIM        = 384              # dims of MiniLM-L6-v2
 
+# ---- Structured facts DB (Phase 2 Step 3) ----
+SQLITE_PATH = INDEX_DIR / "facts.sqlite"
+
 # ---- Groq LLM configuration ----
 # See https://console.groq.com/docs/models for the current model roster.
 # 70B is best quality; 8B-instant is faster and cheaper, use it for bulk work.

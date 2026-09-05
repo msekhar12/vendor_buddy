@@ -20,26 +20,29 @@ _encoder = SentenceTransformer(EMBED_MODEL_PATH)
 
 
 def add_chunks(chunks: list[dict], meta: dict) -> None:
-    """
-    Add a list of chunks (from chunker) to the vector index.
-    meta must include: vendor, date, labels (list[str]), source (path).
-    """
     if not chunks:
         return
     ids  = [f"{meta['source']}#{c['chunk_index']}" for c in chunks]
     docs = [c["text"] for c in chunks]
 
-    # Chroma metadata must be scalar → join labels with '|'
-    metas: Sequence[Mapping[str, Union[str, int, float, bool]]] = [
-        {
+    metas: Sequence[Mapping[str, Union[str, int, float, bool]]] = []
+    for c in chunks:
+        m = {
             "vendor": meta["vendor"],
             "date":   meta["date"],
             "labels": "|".join(meta["labels"]),
             "source": meta["source"],
-            "para":   int(c["para_index"]),
+            "para":   int(c.get("para_index", 0)),
         }
-        for c in chunks
-    ]
+        # Pass through any extra scalar fields on the chunk itself
+        # (chunk_type, region_index, row_index, table_header, prose_index).
+        # Chroma metadata must be scalar — anything non-scalar is skipped.
+        for k, v in c.items():
+            if k in ("text", "chunk_index", "para_index"):
+                continue
+            if isinstance(v, (str, int, float, bool)):
+                m[k] = v
+        metas.append(m)
 
     embeddings = np.asarray(
         _encoder.encode(docs, show_progress_bar=False, convert_to_numpy=True)
@@ -95,3 +98,10 @@ def remove_by_vendor(vendor: str) -> int:
     if ids:
         _collection.delete(ids=ids)
     return len(ids)
+
+def reset() -> None:
+    """Delete every vector in the collection. Used by scripts/reindex.py."""
+    result = _collection.get()          # fetch all IDs
+    ids = result.get("ids") or []
+    if ids:
+        _collection.delete(ids=ids)

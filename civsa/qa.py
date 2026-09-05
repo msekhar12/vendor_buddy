@@ -221,7 +221,603 @@ def _vector_query_vendor(expanded: str, vendor: str, k: int = 15):
         where=cast(Any, {"vendor": {"$eq": vendor}}),
     )
 
+# ---- Table-row boost for price/quantity/spec questions -------------
+_TABLE_QUERY_HINTS = re.compile(
+    r"\b(price|cost|cheapest|expensive|quote|rate|amount|total|"
+    r"quantity|qty|unit|delivery|lead\s*time|days|payment)\b",
+    re.IGNORECASE,
+)
 
+def _boost_table_rows(results, query: str, boost: float = 0.15):
+    """
+    If the query looks like it's asking for a fact that typically lives in
+    a table row, reduce the Chroma distance (better rank) of table_row /
+    table_terminal chunks and re-sort the parallel arrays.
+
+    Chroma's results are column-oriented:
+      {documents:[[...]], metadatas:[[...]], distances:[[...]], ids:[[...]]}
+    Lower distance = better match.
+    """
+    if not _TABLE_QUERY_HINTS.search(query):
+        return results
+
+    metas = (results.get("metadatas") or [[]])[0]
+    dists = (results.get("distances") or [[]])[0]
+    if not metas or not dists:
+        return results
+
+    # Apply the boost (as a distance reduction)
+    for i, m in enumerate(metas):
+        ctype = (m or {}).get("chunk_type", "")
+        if ctype in ("table_row", "table_terminal"):
+            dists[i] = max(0.0, float(dists[i]) - boost)
+
+    # Re-sort every parallel array by the new distances
+    docs = (results.get("documents") or [[]])[0]
+    ids  = (results.get("ids")       or [[]])[0]
+    order = sorted(range(len(dists)), key=lambda k: dists[k])
+
+    results["documents"] = [[docs[k]  for k in order]] if docs else results.get("documents")
+    results["metadatas"] = [[metas[k] for k in order]]
+    results["distances"] = [[dists[k] for k in order]]
+    if ids:
+        results["ids"]   = [[ids[k]   for k in order]]
+
+    return results
+
+
+# ============================================================
+# Structured-query router (Phase 2 Step 3)
+# ============================================================
+def _try_structured(query: str) -> dict | None:
+    """
+    Match the query against structured-query patterns. If one fires, hit
+    SQLite and return a deterministic answer with citations. Return None
+    to fall through to the RAG path.
+
+    Ordering rule: MOST SPECIFIC patterns first, GENERIC catch-alls last.
+    A specific pattern that succeeds returns immediately, so a query like
+    "list vendors from Mumbai" is caught by the location filter before it
+    reaches the bare "list all vendors" block.
+    """
+    from . import structured
+    from .vendor_index import get_vendor_index
+
+    ql = query.lower().strip()
+
+    # Strip wrapping quotes so trailing-anchor regexes still work when
+    # users paste a query enclosed in "..." or '...' or curly quotes.
+    ql = ql.strip('"\'\u201c\u201d\u2018\u2019')
+    ql = ql.strip()   # remove any whitespace freed by the quote strip
+
+    # Normalise vendor synonyms so downstream patterns only match "vendor".
+    ql = re.sub(
+        r"\b(suppliers?|companies|company|firms?|manufacturers?)\b",
+        "vendor", ql,
+    )
+
+    # ================================================================
+    # GROUP A · Specific single-vendor queries
+    # ================================================================
+
+    # ---- Single-vendor ISO certification check ("is X iso certified?") ----
+    if re.search(r"\biso\b", ql) and re.search(
+        r"\b(is|does|do|has|have|got)\b", ql
+    ):
+        m = re.search(
+            r"\b(?:is|does|do|has|have)\s+(.+?)\s+"
+            r"(?:an?\s+|hold(?:s|ing)?\s+|got\s+|obtained\s+)?iso",
+            ql, re.IGNORECASE,
+        )
+        if m:
+            vendor_str = m.group(1).strip()
+            vendor_str = re.sub(
+                r"\s+(hold(s|ing)?|have|has|got|obtained)$",
+                "", vendor_str, flags=re.IGNORECASE,
+            )
+            resolved = get_vendor_index().resolve(vendor_str)
+
+            if not resolved.canonical:
+                return {
+                    "answer": f'No records for a vendor called "{vendor_str}" '
+                              f"in our corpus.",
+                    "sources": [],
+                    "route_method": "structured_sql_empty",
+                }
+            canonical = resolved.canonical
+
+            std_match = re.search(r"\biso[\s\-]*(9001|14001|17025)\b", ql)
+            requested = std_match.group(1) if std_match else None
+
+            facts = structured.get_all_facts_for_vendor(canonical)
+            vf_rows = facts["vendor_facts"]
+            if not vf_rows:
+                return {
+                    "answer": f"No structured facts extracted yet for "
+                              f"{canonical}. Try re-indexing.",
+                    "sources": [],
+                    "route_method": "structured_sql_empty",
+                }
+            row = vf_rows[0]
+
+            def _describe(val: int | None, label: str) -> str | None:
+                if val == 1: return f"holds {label}"
+                if val == 0: return f"is NOT {label} certified"
+                return None
+
+            if requested:
+                key = f"iso_{requested}"
+                label = (f"ISO {requested}" if requested != "17025"
+                         else "ISO/IEC 17025")
+                desc = _describe(row.get(key), label)
+                if desc:
+                    answer_txt = f"{canonical} {desc}."
+                else:
+                    answer_txt = (f"{canonical}'s document does not explicitly "
+                                  f"mention {label} certification.")
+            else:
+                holds = [lbl for k, lbl in [("iso_9001",  "ISO 9001"),
+                                            ("iso_14001", "ISO 14001"),
+                                            ("iso_17025", "ISO/IEC 17025")]
+                         if row.get(k) == 1]
+                nope  = [lbl for k, lbl in [("iso_9001",  "ISO 9001"),
+                                            ("iso_14001", "ISO 14001"),
+                                            ("iso_17025", "ISO/IEC 17025")]
+                         if row.get(k) == 0]
+                if holds:
+                    answer_txt = f"Yes — {canonical} holds {', '.join(holds)}."
+                elif nope:
+                    answer_txt = (f"No — {canonical}'s document explicitly "
+                                  f"states they are NOT ISO certified "
+                                  f"({', '.join(nope)}).")
+                else:
+                    answer_txt = (f"{canonical}'s document does not mention "
+                                  f"ISO certification.")
+
+            return {
+                "answer": answer_txt,
+                "sources": [{"source": row["source_doc"], "vendor": canonical}],
+                "route_method": "structured_sql",
+            }
+
+    # ---- Specific vendor field lookup ("what is X's GSTIN?") ----
+    # ---- Specific vendor field lookup ----
+    #   Handles both phrasings:
+    #     "what is Kaveri's GSTIN?"              (possessive)
+    #     "what is the GSTIN of Kaveri?"         (of-form)
+    #     "give me Nirmala's address"            (possessive)
+    #     "show me the PAN for Deccan"           (for-form)
+    field_lookup: tuple[str, str] | None = None   # (field_raw, vendor_str)
+
+    # Possessive: "<leader> <vendor>'s <field>"
+    # Accept both straight ' and curly ’
+    m = re.search(
+        r"\b(?:what\s+is|what(?:'|\u2019)?s|give\s+me|show\s+me|tell\s+me)\s+"
+        r"(.+?)(?:'|\u2019)s\s+"
+        r"(gstin|gst\s*number|pan|cin|address|location|"
+        r"quote\s*number|quote\s*no\.?|quote\s*date)"
+        r"\s*\??\s*$",
+        ql,
+    )
+    if m:
+        field_lookup = (m.group(2).strip(), m.group(1).strip())
+    else:
+        # Of/for form: "<leader> the <field> of <vendor>"
+        m = re.search(
+            r"\b(?:what\s+is|what(?:'|\u2019)?s|give\s+me|show\s+me|tell\s+me)\s+"
+            r"(?:the\s+)?"
+            r"(gstin|gst\s*number|pan|cin|address|location|"
+            r"quote\s*number|quote\s*no\.?|quote\s*date)\s+"
+            r"(?:of|for)\s+(.+?)(?:\?|$)",
+            ql,
+        )
+        if m:
+            field_lookup = (m.group(1).strip(), m.group(2).strip())
+
+    if field_lookup:
+        field_raw, vendor_str = field_lookup
+        field_raw = re.sub(r"\s+", " ", field_raw)
+        vendor_str = vendor_str.strip().strip('"\'')
+
+        resolved = get_vendor_index().resolve(vendor_str)
+        if not resolved.canonical:
+            return {"answer": f'No records for a vendor called "{vendor_str}".',
+                    "sources": [], "route_method": "structured_sql_empty"}
+
+        field_map = {
+            "gstin": "gstin", "gst number": "gstin",
+            "pan": "pan", "cin": "cin",
+            "address": "address", "location": "address",
+            "quote number": "quote_number", "quote no": "quote_number",
+            "quote no.": "quote_number", "quote date": "quote_date",
+        }
+        field = field_map.get(field_raw)
+        if field:
+            row = structured.get_vendor_field(resolved.canonical, field)
+            val = (row or {}).get(field)
+            if not val:
+                return {"answer": f"No {field_raw} on file for "
+                                  f"{resolved.canonical}.",
+                        "sources": [], "route_method": "structured_sql_empty"}
+            return {"answer": f"{resolved.canonical} — {field_raw}: {val}",
+                    "sources": [{"source": row["source_doc"],
+                                 "vendor": resolved.canonical}],
+                    "route_method": "structured_sql"}
+
+    # ---- Price of specific item from specific vendor ----
+    m = re.search(
+        r"\b(?:price|cost|rate)\s+of\s+(.+?)\s+from\s+(.+?)(?:\?|$)", ql
+    )
+    if m:
+        item, vendor_str = m.group(1).strip(), m.group(2).strip()
+        resolved = get_vendor_index().resolve(vendor_str)
+        if not resolved.canonical:
+            return {"answer": f'No records for a vendor called "{vendor_str}".',
+                    "sources": [], "route_method": "structured_sql_empty"}
+        row = structured.price_of_item_from_vendor(resolved.canonical, item)
+        if not row:
+            return {"answer": f"{resolved.canonical} did not quote for "
+                              f"anything matching '{item}'.",
+                    "sources": [], "route_method": "structured_sql_empty"}
+        price = (f"INR {row['unit_price_inr']:,.0f}"
+                 if row['unit_price_inr'] else "N/A")
+        unit = f"/{row['unit']}" if row.get('unit') else ""
+        return {"answer": f"{resolved.canonical} quoted {row['description']} "
+                          f"at {price}{unit}.",
+                "sources": [{"source": row["source_doc"],
+                             "vendor": resolved.canonical}],
+                "route_method": "structured_sql"}
+
+    # ---- Items list from a vendor ("what did X quote?") ----
+    m = re.search(
+        r"\b(?:what|which\s+items?)\s+(?:did|does|has|have|do)\s+"
+        r"(.+?)\s+(?:quote|offer|supply|provide|sell|stock)", ql
+    )
+    if m:
+        vendor_str = m.group(1).strip()
+        resolved = get_vendor_index().resolve(vendor_str)
+        if not resolved.canonical:
+            return {"answer": f'No records for a vendor called "{vendor_str}".',
+                    "sources": [], "route_method": "structured_sql_empty"}
+        rows = structured.items_from_vendor(resolved.canonical)
+        if not rows:
+            return {"answer": f"{resolved.canonical} has no extracted line items.",
+                    "sources": [], "route_method": "structured_sql_empty"}
+        lines = [f"{resolved.canonical} — {len(rows)} line item"
+                 f"{'s' if len(rows) != 1 else ''}:", ""]
+        for r in rows:
+            price = (f"INR {r['unit_price_inr']:,.0f}"
+                     if r['unit_price_inr'] else "N/A")
+            unit = f"/{r['unit']}" if r.get('unit') else ""
+            lines.append(f"• {r['description']} — {price}{unit}")
+        return {"answer": "\n".join(lines),
+                "sources": [{"vendor": resolved.canonical}],
+                "route_method": "structured_sql"}
+
+    # ================================================================
+    # GROUP B · Multi-vendor filter queries
+    # ================================================================
+
+    # ---- Specific ISO cert (9001 / 14001 / 17025) ----
+    for cert_num, cert_key, cert_label in [
+        ("9001",  "iso_9001",  "ISO 9001"),
+        ("14001", "iso_14001", "ISO 14001"),
+        ("17025", "iso_17025", "ISO/IEC 17025"),
+    ]:
+        if re.search(rf"iso[\s\-]*{cert_num}", ql):
+            negated = bool(re.search(r"\b(not|non|without|missing|no)\b", ql))
+            rows = (structured.list_non_iso(cert_key)
+                    if negated
+                    else structured.list_iso_certified(cert_key))
+            heading = (f"Vendors NOT holding {cert_label} certification:"
+                       if negated
+                       else f"Vendors holding {cert_label} certification:")
+            return _format_vendor_list(heading, rows)
+
+    # ---- GST / GSTIN presence ----
+    if re.search(r"\bgst(in)?\b", ql):
+        negated = bool(re.search(
+            r"\b(not|no|without|missing|don'?t|do\s+not|lack(?:ing)?)\b", ql
+        ))
+        if negated:
+            rows = structured.vendors_without_gstin()
+            heading = "Vendors without a registered GSTIN:"
+        else:
+            rows = structured.vendors_with_gstin()
+            heading = "Vendors with a registered GSTIN:"
+        if not rows:
+            return {"answer": f"{heading}\n\n(No matching entries.)",
+                    "sources": [], "route_method": "structured_sql_empty"}
+        seen: set[str] = set()
+        lines = [heading, ""]
+        sources: list[dict] = []
+        for r in rows:
+            v = r["canonical_vendor"]
+            if v in seen: continue
+            seen.add(v)
+            g = r.get("gstin")
+            lines.append(f"• {v}" + (f" — GSTIN {g}" if g else ""))
+            sources.append({"source": r["source_doc"], "vendor": v})
+        return {"answer": "\n".join(lines), "sources": sources,
+                "route_method": "structured_sql"}
+
+    # ---- Vendor location filter ("vendors from Mumbai") ----
+    m = re.search(
+        r"\bvendors?\s+(?:in|from|based\s+in|located\s+in)\s+(.+?)(?:\?|$)", ql
+    )
+    if m:
+        place = m.group(1).strip().strip('"\'')
+        rows = structured.vendors_from(place)
+        return _format_vendor_list(f"Vendors based in {place}:", rows)
+
+    # ---- Recent quotes by issue date ("last N days/weeks/months") ----
+    m = re.search(
+        r"\b(?:last|past|previous|within|in\s+the\s+last)\s+"
+        r"(\d+)\s+(day|days|week|weeks|month|months)\b",
+        ql,
+    )
+    if m and re.search(r"\bquot|submit|received|issued|dated\b", ql):
+        n = int(m.group(1))
+        unit_mul = {"day": 1, "days": 1,
+                    "week": 7, "weeks": 7,
+                    "month": 30, "months": 30}[m.group(2)]
+        days = n * unit_mul
+        rows = structured.recent_quotes(days)
+        return _format_recent(rows, days)
+
+    # ---- Delivery under N days ----
+    m = re.search(
+        r"\bdeliver(?:y|s|ing)?.*(?:under|below|within|less\s+than|"
+        r"in\s+under|max)\s+(\d+)\s+(?:working\s+)?days?\b",
+        ql,
+    )
+    if m:
+        n = int(m.group(1))
+        rows = structured.delivery_under(n)
+        return _format_delivery(f"Vendors with delivery under {n} days:", rows)
+
+    # ================================================================
+    # GROUP C · Ranking queries
+    # ================================================================
+
+    # ---- Cheapest / lowest price ----
+    if re.search(r"\b(cheapest|lowest\s+price|least\s+expensive|best\s+price)\b", ql):
+        item = _extract_item_from_query(query)
+        if item:
+            rows = structured.cheapest_for(item, top_n=5)
+            return _format_price_list(f"Cheapest offers for {item}:", rows)
+
+    # ---- Most expensive / highest price ----
+    if re.search(r"\b(most\s+expensive|highest\s+price|priciest|dearest)\b", ql):
+        item = _extract_item_from_query(query)
+        if item:
+            rows = structured.most_expensive_for(item, top_n=5)
+            return _format_price_list(f"Most expensive offers for {item}:", rows)
+
+    # ---- Fastest delivery ----
+    if re.search(r"\b(fastest|quickest|shortest\s+(?:delivery|lead))\b", ql):
+        rows = structured.fastest_delivery(top_n=5)
+        return _format_delivery(
+            "Vendors ranked by delivery lead time (fastest first):", rows
+        )
+
+    # ---- Slowest / longest delivery ----
+    if re.search(r"\b(slowest|longest\s+(?:delivery|lead))\b", ql):
+        rows = structured.slowest_delivery(top_n=5)
+        return _format_delivery(
+            "Vendors ranked by delivery lead time (slowest first):", rows
+        )
+
+    # ---- Longest credit / best payment terms ----
+    if re.search(
+        r"\blongest\s+(?:credit|payment)|most\s+credit\s+days|"
+        r"best\s+payment\s+terms\b",
+        ql,
+    ):
+        rows = structured.longest_credit(top_n=5)
+        return _format_credit(
+            "Vendors ranked by credit period (longest first):", rows
+        )
+
+    # ---- Shortest credit / worst payment terms ----
+    if re.search(
+        r"\bshortest\s+(?:credit|payment)|worst\s+payment\s+terms\b", ql
+    ):
+        rows = structured.shortest_credit(top_n=5)
+        return _format_credit(
+            "Vendors ranked by credit period (shortest first):", rows
+        )
+
+    # ================================================================
+    # GROUP D · Item availability
+    # ================================================================
+
+    # ---- Who supplies / quoted / offers item X ----
+    m = re.search(
+        r"\b(?:who|which\s+vendors?|any\s+vendors?|any\s+vendor)\s+"
+        r"(?:can|could|would|may|does|do|will|has|have)?\s*"
+        r"(?:quoted?|offered?|supply|supplies|supplied|sells?|sold|"
+        r"provides?|provided|stocks?|stocked|carries|carry|has|have)\s+"
+        r"(?:for\s+|us\s+with\s+|the\s+)?(.+?)(?:\?|$)",
+        ql,
+    )
+    if m:
+        item = m.group(1).strip().strip('"\'')
+        if item:
+            rows = structured.vendors_with_item(item)
+            return _format_price_list(f"Vendors who quoted for {item}:", rows)
+
+    # ================================================================
+    # GROUP E · Generic catch-alls (must be LAST)
+    # ================================================================
+
+    # ---- Corpus counts ("how many …?") ----
+    if re.search(r"\bhow\s+many\b", ql):
+        if re.search(r"\bvendor", ql):
+            n = structured.vendor_count()
+            return {"answer": f"The corpus has {n} vendor"
+                              f"{'s' if n != 1 else ''}.",
+                    "sources": [], "route_method": "structured_sql"}
+        if re.search(r"\bquotes?|quotations?\b", ql):
+            n = structured.quote_count()
+            return {"answer": f"The corpus has {n} quote document"
+                              f"{'s' if n != 1 else ''}.",
+                    "sources": [], "route_method": "structured_sql"}
+        if re.search(r"\bitems?|line\s*items?|skus?\b", ql):
+            vh = _detect_vendor(query)
+            n = structured.item_count(vh)
+            if vh:
+                return {"answer": f"{vh} quoted {n} line item"
+                                  f"{'s' if n != 1 else ''}.",
+                        "sources": [], "route_method": "structured_sql"}
+            return {"answer": f"The corpus has {n} line item"
+                              f"{'s' if n != 1 else ''} across all quotes.",
+                    "sources": [], "route_method": "structured_sql"}
+
+    # ---- Generic "iso certified?" without a specific standard ----
+    if re.search(r"\biso\b", ql) and re.search(r"which|what|list|vendors?", ql):
+        negated = bool(re.search(r"\b(not|non|without|no)\b", ql))
+        rows = (structured.list_non_iso("iso_9001")
+                if negated
+                else structured.list_iso_certified("iso_9001"))
+        heading = ("Vendors NOT ISO 9001 certified:" if negated
+                   else "ISO 9001 certified vendors:")
+        return _format_vendor_list(heading, rows)
+
+    # ---- Corpus list: "list all vendors" (widest catch-all) ----
+    if re.search(r"\b(list|show|what|which|all)\b.*\bvendors?\b", ql) \
+       and not re.search(
+           r"\b(iso|price|cheapest|fastest|slowest|delivery|payment|"
+           r"credit|gst|from|in|based|located|quote)\b", ql
+       ):
+        vendors = get_vendor_index().vendors
+        if not vendors:
+            return {"answer": "The corpus is empty — no vendors yet.",
+                    "sources": [], "route_method": "structured_corpus"}
+        lines = [f"The corpus contains {len(vendors)} vendor"
+                 f"{'s' if len(vendors) != 1 else ''}:", ""]
+        lines += [f"• {v}" for v in vendors]
+        return {"answer": "\n".join(lines), "sources": [],
+                "route_method": "structured_corpus"}
+
+    return None
+
+
+def _format_vendor_list(heading: str, rows: list[dict]) -> dict:
+    if not rows:
+        return {"answer": f"{heading}\n\n(No matching entries in the structured facts DB. "
+                          f"Try re-indexing to populate it, or the doc may not have stated this explicitly.)",
+                "sources": [], "route_method": "structured_sql_empty"}
+    seen: set[str] = set()
+    lines = [heading, ""]
+    sources: list[dict] = []
+    for r in rows:
+        v = r["canonical_vendor"]
+        if v in seen:
+            continue
+        seen.add(v)
+        lines.append(f"• {v}")
+        sources.append({"source": r["source_doc"], "vendor": v})
+    return {"answer": "\n".join(lines), "sources": sources,
+            "route_method": "structured_sql"}
+
+
+def _format_price_list(heading: str, rows: list[dict]) -> dict:
+    if not rows:
+        return {"answer": f"{heading}\n\n(No matching entries in the structured facts DB.)",
+                "sources": [], "route_method": "structured_sql_empty"}
+    lines = [heading, ""]
+    sources: list[dict] = []
+    for r in rows:
+        price = (f"INR {r['unit_price_inr']:,.0f}"
+                 if r.get("unit_price_inr") is not None else "price N/A")
+        unit = f"/{r['unit']}" if r.get("unit") else ""
+        lines.append(f"• {r['canonical_vendor']}: {r['description']} — {price}{unit}")
+        sources.append({"source": r["source_doc"], "vendor": r["canonical_vendor"]})
+    return {"answer": "\n".join(lines), "sources": sources,
+            "route_method": "structured_sql"}
+
+
+def _format_delivery(heading: str, rows: list[dict]) -> dict:
+    if not rows:
+        return {"answer": f"{heading}\n\n(No delivery info in the structured facts DB.)",
+                "sources": [], "route_method": "structured_sql_empty"}
+    lines = [heading, ""]
+    sources: list[dict] = []
+    for r in rows:
+        mn, mx = r.get("delivery_days_min"), r.get("delivery_days_max")
+        rng = (f"{mn}-{mx} days" if mn != mx else f"{mn} days") if mn is not None else "N/A"
+        lines.append(f"• {r['canonical_vendor']}: {rng}")
+        sources.append({"source": r["source_doc"], "vendor": r["canonical_vendor"]})
+    return {"answer": "\n".join(lines), "sources": sources,
+            "route_method": "structured_sql"}
+
+
+def _format_credit(heading: str, rows: list[dict]) -> dict:
+    if not rows:
+        return {"answer": f"{heading}\n\n(No payment terms in the structured facts DB.)",
+                "sources": [], "route_method": "structured_sql_empty"}
+    lines = [heading, ""]
+    sources: list[dict] = []
+    for r in rows:
+        days = r.get("payment_days_net")
+        raw = r.get("payment_terms_raw") or ""
+        detail = f"{days} days net" if days is not None else "N/A"
+        if raw:
+            detail += f" ({raw})"
+        lines.append(f"• {r['canonical_vendor']}: {detail}")
+        sources.append({"source": r["source_doc"], "vendor": r["canonical_vendor"]})
+    return {"answer": "\n".join(lines), "sources": sources,
+            "route_method": "structured_sql"}
+
+
+def _extract_item_from_query(query: str) -> str | None:
+    """
+    Extract an item name from a price-superlative query. Handles both
+    families (cheapest/lowest AND most-expensive/priciest).
+    """
+    m = re.search(
+        r"(?:cheapest|lowest\s+price|least\s+expensive|best\s+price|"
+        r"most\s+expensive|highest\s+price|priciest|dearest)\s+"
+        r"(?:for|of|on)?\s*(.+?)(?:\?|\.|$|\s+(?:from|among|between|by)\b)",
+        query, re.IGNORECASE,
+    )
+    if not m:
+        return None
+    item = m.group(1).strip()
+    item = re.sub(r"^(the|a|an)\s+", "", item, flags=re.IGNORECASE)
+    item = item.rstrip(".?!, ").strip()
+    return item or None
+
+def _format_recent(rows: list[dict], days: int) -> dict:
+    if not rows:
+        return {
+            "answer": f"No quotes with an extracted quote_date in the last "
+                      f"{days} day{'s' if days != 1 else ''}.",
+            "sources": [],
+            "route_method": "structured_sql_empty",
+        }
+    lines = [
+        f"Vendors with quotes issued in the last {days} day"
+        f"{'s' if days != 1 else ''} (most recent first):",
+        "",
+    ]
+    sources: list[dict] = []
+    for r in rows:
+        num = r.get("quote_number") or "—"
+        date = r.get("quote_date") or "?"
+        lines.append(
+            f"• {r['canonical_vendor']}: {date} (quote #{num})"
+        )
+        sources.append({
+            "source": r["source_doc"],
+            "vendor": r["canonical_vendor"],
+        })
+    return {
+        "answer": "\n".join(lines),
+        "sources": sources,
+        "route_method": "structured_sql",
+    }
 # ---------- Main entry ----------
 
 def answer(query: str, intent: str | None = None) -> dict:
@@ -240,6 +836,21 @@ def answer(query: str, intent: str | None = None) -> dict:
                 "route_method": "unrelated"}
     print(f"[qa] original: {query!r}", flush=True)
     print(f"[qa] expanded: {expanded!r}", flush=True)
+
+
+    expanded = _expand_query(query)
+    if expanded.lower() == "unrelated to procurement":
+        return {"answer": "Not procurement-related.", "sources": [],
+                "route_method": "unrelated"}
+    print(f"[qa] original: {query!r}", flush=True)
+    print(f"[qa] expanded: {expanded!r}", flush=True)
+
+    # ---- NEW: Path 0 — try structured DB first (deterministic answers) ----
+    structured_result = _try_structured(query)
+    if structured_result:
+        print(f"[qa] structured route: "
+              f"{structured_result['route_method']}", flush=True)
+        return structured_result    
 
     # ---- Path A: vendor-scoped (single-subject question) ----
     if vendor_hint:
@@ -263,6 +874,7 @@ def answer(query: str, intent: str | None = None) -> dict:
     if is_multi:
         # Broader k, no source filter — need enough vendors represented
         hits = vector_store.query(expanded, k=40)
+        hits = _boost_table_rows(hits, query)
         docs  = hits["documents"][0]  if hits["documents"]  else []
         metas = hits["metadatas"][0] if hits["metadatas"] else []
         print(f"[qa] multi-vendor broad retrieval: {len(docs)} chunks",
@@ -285,6 +897,7 @@ def answer(query: str, intent: str | None = None) -> dict:
 
         hits = vector_store.query(expanded, k=20,
                                   source_filter=candidate_sources)
+        hits = _boost_table_rows(hits, query)
         docs  = hits["documents"][0]  if hits["documents"]  else []
         metas = hits["metadatas"][0] if hits["metadatas"] else []
 

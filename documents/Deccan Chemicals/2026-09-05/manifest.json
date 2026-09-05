@@ -1,0 +1,17 @@
+{
+  "vendor": "Deccan Chemicals",
+  "date": "2026-09-05",
+  "docs": [
+    {
+      "filename": "deccan_chemicals_quote.pdf",
+      "labels": [
+        "quote"
+      ],
+      "label_source": "user",
+      "sha256": "5268b3d31e65b68f36e6ee72215a932cd314da29b0d0a5b860d0f93001f87fb5",
+      "size_bytes": 5851,
+      "uploaded_by": "anonymous",
+      "uploaded_at": "2026-09-05T14:57:28+00:00"
+    }
+  ]
+}

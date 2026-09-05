@@ -10,6 +10,27 @@ from time import time
 
 from ..config import MAX_QUERY_TOKENS
 
+_PROCUREMENT_ALLOW = re.compile(
+    r"\b("
+    r"vendor|supplier|company|firm|manufacturer|"
+    r"quote|quotation|invoice|contract|po|purchase\s*order|rfq|"
+    r"gstin|gst|pan|cin|hsn|sac|"
+    r"iso[\s\-]?\d+|iso\s+certified|certification|"
+    r"price|cost|rate|amount|total|payment|credit|"
+    r"delivery|lead\s*time|freight|packaging|warranty|"
+    r"chemical|reagent|solvent|acid|"
+    # Known vendors — cheap and effective for the current corpus
+    r"nirmala|kaveri|aditya|gangotri|deccan|rajshree"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def looks_like_procurement(query: str) -> bool:
+    """Fast-path: any query containing a strong procurement token is
+    obviously in-domain and does not need the classifier's opinion."""
+    return bool(_PROCUREMENT_ALLOW.search(query))
+
 # Pattern list gathered from HackAPrompt + common jailbreak phrasings
 _INJECTION = re.compile(
     r"(ignore\s+(previous|prior|all)|"
@@ -28,12 +49,19 @@ RATE_LIMIT = 30              # queries per minute per user
 
 def check(query: str, user: str = "anonymous") -> tuple[bool, str]:
     """Returns (passed, reason). reason is a code mapped to UI text elsewhere."""
+    print(f"[gate] checking query (user={user}): {query[:50]}...", flush=True)
     if not query or not query.strip():
+        print("[gate] empty query", flush=True)
         return False, "empty"
     if len(query.split()) > MAX_QUERY_TOKENS:
+        print(f"[gate] query too long: {len(query.split())} words", flush=True)
         return False, "too_long"
     if _INJECTION.search(query):
+        print("[gate] prompt-injection detected", flush=True)
         return False, "injection"
+    if looks_like_procurement(query):
+        print("[gate] fast-path: obvious procurement query", flush=True)
+        return True, "obvious_procurement_vocab"
 
     # Sliding 60-second rate limit per user
     now = time()

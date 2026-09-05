@@ -26,7 +26,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import tfidf_store, vector_store
-from .config import ALLOWED_LABELS, DOC_STORE, MAX_UPLOAD_MB
+from .config import ALLOWED_LABELS, DOC_STORE, MAX_UPLOAD_MB, SQLITE_PATH
 from .extract import extract_text
 from .gate.pipeline import process as gate
 from .indexer import index_document
@@ -46,6 +46,10 @@ from .vendor_index import get_vendor_index, refresh_vendor_index
 # ================================================================
 app = FastAPI(title="CIVSA")
 STORAGE = LocalDriver(root=DOC_STORE)
+
+from . import structured
+
+structured.init_db(SQLITE_PATH)
 
 @app.get("/api/labels")
 def list_labels():
@@ -359,6 +363,7 @@ def delete_vendor(vendor: str):
 
     n_chroma = vector_store.remove_by_vendor(vendor)
     n_tfidf  = tfidf_store.remove_by_vendor(vendor)
+    structured.remove_by_vendor(vendor)
     shutil.rmtree(vendor_root)
     refresh_vendor_index()
 
@@ -377,6 +382,7 @@ def delete_doc(vendor: str, date: str, filename: str):
     source = str(file_path)
     n_chroma = vector_store.remove_by_source(source)
     n_tfidf  = tfidf_store.remove_by_source(source)
+    structured.remove_by_source(source)  
 
     mf = load_manifest(folder)
     mf["docs"] = [d for d in mf["docs"] if d["filename"] != filename]
@@ -489,6 +495,25 @@ def debug_gate(
 
     out["final_verdict"] = "REJECTED · off_topic"
     return out
+
+
+@app.get("/api/debug/chunks")
+def api_debug_chunks(vendor: str, date: str, filename: str):
+    """Return the chunks the current chunker would produce for one document."""
+    from .chunker import chunk_document
+    path = STORAGE.root / vendor / date / filename
+    if not path.exists():
+        raise HTTPException(404, "File not found.")
+    text = extract_text(path)
+    chunks = chunk_document(text)
+    return {
+        "vendor": vendor,
+        "date": date,
+        "filename": filename,
+        "n_chunks": len(chunks),
+        "chunks": chunks,
+    }
+
 
 @app.get("/api/vendor-resolve")
 def api_vendor_resolve(q: str):

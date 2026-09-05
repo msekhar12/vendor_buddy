@@ -31,3 +31,61 @@ ollama pull qwen2.5:7b        # ~5 GB — better quality for RAG answers
 # Verify
 ollama list
 ollama run llama3.2:3b "Say hello"
+
+# To turn-off sql tracing:
+CIVSA_SQL_TRACE=0 make api
+
+
+# wipe out and reindex:
+python -c "
+from civsa import structured
+from civsa.config import SQLITE_PATH
+structured.init_db(SQLITE_PATH)
+structured.reset()
+"
+
+make reindex
+
+# SQL Test queries:
+
+sqlite3 indexes/facts.sqlite (for interactive)
+
+sqlite3 indexes/facts.sqlite \
+  "SELECT canonical_vendor FROM vendor_facts WHERE LOWER(canonical_vendor) LIKE '%kaveri%';"
+
+sqlite3 indexes/facts.sqlite \
+  "SELECT canonical_vendor FROM vendor_facts WHERE LOWER(canonical_vendor) LIKE '%nirmala%';"  
+
+
+
+is Nirmala ISO 9001 certified?	A · single-vendor ISO
+what is Kaveri's GSTIN? --NOGSTIN for Kaveri
+what is nirmala's GSTIN?	
+price of methanol from Nirmala?
+what did Aditya quote?
+which vendors are ISO 14001 certified?
+which suppliers do not have GST?
+vendors from Mumbai
+quotes in the last 2 days
+quotes in the last 10 days
+vendors delivering under 7 days
+cheapest ethanol
+most expensive methanol. 
+who can supply methanol?
+least expensive methanol
+cheapest methanol?
+fastest delivery
+slowest delivery
+longest credit period
+shortest credit
+who can supply potassium phosphate?
+who can supply methanol?
+how many vendors?
+how many items did Nirmala quote?
+list ISO certified vendors
+list all vendors
+what is Kaveri's GSTIN?
+what is the GSTIN of Nirmala Chemicals?
+"give me Deccan's PAN" → Deccan Chemicals & Reagents — pan: AAAFD3320H
+"tell me the address of Gangotri" → the address string
+"show me Aditya's quote number" → the quote reference number

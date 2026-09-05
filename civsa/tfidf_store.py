@@ -33,16 +33,29 @@ def _save(data: dict) -> None:
 def add_chunks(chunks: list[dict], meta: dict) -> None:
     data = _load()
     for c in chunks:
+        # Pull any extra scalar fields (chunk_type, region_index, ...) into
+        # the per-chunk meta alongside the document-level meta.
+        extra = {
+            k: v for k, v in c.items()
+            if k not in ("text", "chunk_index", "para_index")
+            and isinstance(v, (str, int, float, bool))
+        }
         data["chunks"].append(c["text"])
-        data["metas"].append({**meta, "para": c["para_index"]})
+        data["metas"].append({
+            **meta,
+            "para": c.get("para_index", 0),
+            **extra,
+        })
 
     # Rebuild the vectorizer on the full corpus (small enough in Phase 1)
-    vec = TfidfVectorizer(max_features=20_000, ngram_range=(1, 2),
-                          tokenizer=_stem_tokens,
-                          lowercase=True,
-                          analyzer="word",
-                          token_pattern=None,
-                          stop_words="english",)         # drops "which", "can", "the" etc.
+    vec = TfidfVectorizer(
+        max_features=20_000, ngram_range=(1, 2),
+        tokenizer=_stem_tokens,
+        lowercase=True,
+        analyzer="word",
+        token_pattern=None,
+        stop_words="english",
+    )
     matrix = vec.fit_transform(data["chunks"])
     data["vectorizer"] = vec
     data["matrix"] = matrix
@@ -98,3 +111,12 @@ def _remove(match) -> int:
         data.pop("matrix", None)
     _save(data)
     return removed
+
+def reset() -> None:
+    """Empty the TF-IDF store. Used by scripts/reindex.py."""
+    _save({
+        "chunks":     [],
+        "metas":      [],
+        "vectorizer": None,
+        "matrix":     None,
+    })

@@ -841,6 +841,51 @@ if (vProbeBtn && vProbeInp && vProbeOut) {
   });
 }
 
+/* ---------- Chunk viewer ---------- */
+const chunkBtn = document.getElementById("chunk-btn");
+if (chunkBtn) {
+  chunkBtn.addEventListener("click", async () => {
+    const v = document.getElementById("chunk-vendor").value.trim();
+    const d = document.getElementById("chunk-date").value.trim();
+    const f = document.getElementById("chunk-filename").value.trim();
+    const out = document.getElementById("chunk-out");
+    if (!v || !d || !f) {
+      out.textContent = "Fill vendor / date / filename.";
+      return;
+    }
+    out.innerHTML = "Loading…";
+    try {
+      const resp = await fetch(
+        `${API}/api/debug/chunks?vendor=${encodeURIComponent(v)}` +
+          `&date=${encodeURIComponent(d)}&filename=${encodeURIComponent(f)}`,
+      );
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      out.innerHTML = "";
+
+      const summary = document.createElement("div");
+      summary.className = "chunk-summary";
+      summary.textContent = `${data.n_chunks} chunks total`;
+      out.appendChild(summary);
+
+      data.chunks.forEach((c, i) => {
+        const el = document.createElement("div");
+        const ctype = c.chunk_type || "unknown"; // flat dict — no c.metadata
+        el.className = `chunk chunk-${ctype}`;
+        const bits = [`#${i}`, ctype];
+        if (c.row_index !== undefined) bits.push(`row ${c.row_index}`);
+        if (c.prose_index !== undefined) bits.push(`prose ${c.prose_index}`);
+        el.innerHTML =
+          `<div class="chunk-head">${bits.join(" · ")}</div>` +
+          `<pre>${escapeHTML(c.text)}</pre>`;
+        out.appendChild(el);
+      });
+    } catch (e) {
+      out.textContent = `Error: ${e.message}`;
+    }
+  });
+}
+
 /* ============================================================
    Utilities
    ============================================================ */
