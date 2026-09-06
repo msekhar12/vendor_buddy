@@ -170,7 +170,24 @@ def build_narrative(row: dict, baseline: dict) -> str:
         f"driven mainly by {labels[top_k]}, "
         f"which sits {direction} the shortlist baseline."
     ]
-    if row.get("S1") is not None and row.get("price"):
+    if row.get("S1") is not None and row.get("price") and baseline.get("S1"):
+        # Invert S1 to recover a price context the buyer thinks in.
+        # S1 = 100 * min_price / price   →   min_price = price * S1 / 100
+        # baseline_S1 = 100 * min_price / avg_price → avg_price = min_price / (baseline_S1/100)
+        min_price = row["price"] * row["S1"] / 100
+        avg_price = min_price / (baseline["S1"] / 100)
+        delta     = avg_price - row["price"]
+        if delta > 1:
+            price_note = f"INR {delta:,.0f} cheaper than the shortlist average"
+        elif delta < -1:
+            price_note = f"INR {-delta:,.0f} more expensive than the shortlist average"
+        else:
+            price_note = "priced at the shortlist average"
+        parts.append(
+            f"Priced at INR {row['price']:,.0f}/{row.get('unit', 'unit')} — "
+            f"{price_note} (S₁ = {row['S1']})."
+        )
+    elif row.get("S1") is not None and row.get("price"):
         parts.append(
             f"Priced at INR {row['price']:,.0f}/{row.get('unit', 'unit')} "
             f"(S₁ = {row['S1']})."

@@ -1219,13 +1219,17 @@ function renderRankDetail(row, data) {
       </div>`;
       }
       const cls = c > 0 ? "pos" : c < 0 ? "neg" : "zero";
+      const arrow = c > 0 ? "↑" : c < 0 ? "↓" : "·";
+      const word = c > 0 ? "better" : c < 0 ? "worse" : "neutral";
       const width = Math.min(Math.abs(c) * 3, 100);
       return `<div class="wf-row">
       <span class="wf-label">${k} · ${CRITERION_LABELS[k]}</span>
       <div class="wf-bar-container">
         <div class="wf-bar wf-${cls}" style="width:${width}%"></div>
       </div>
-      <span class="wf-value ${cls}">${c > 0 ? "+" : ""}${c}</span>
+      <span class="wf-value ${cls}">
+        ${arrow} ${word} · ${c > 0 ? "+" : ""}${c} pts
+      </span>
     </div>`;
     })
     .join("");

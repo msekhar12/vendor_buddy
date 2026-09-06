@@ -1427,7 +1427,7 @@ button.danger:hover {
 }
 .wf-row {
   display: grid;
-  grid-template-columns: 200px 1fr 64px;
+  grid-template-columns: 200px 1fr 140px;
   align-items: center;
   gap: 12px;
   padding: 4px 0;
