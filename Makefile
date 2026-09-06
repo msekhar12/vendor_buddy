@@ -31,3 +31,15 @@ clean:
 
 reindex:
 	PYTHONPATH=. python scripts/reindex.py	 
+
+eval:
+	python -m scripts.eval
+
+eval-sql:
+	python -m scripts.eval --family sql
+
+eval-http:
+	python -m scripts.eval --http
+
+eval-verbose:
+	python -m scripts.eval --verbose	

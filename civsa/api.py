@@ -514,6 +514,21 @@ def api_debug_chunks(vendor: str, date: str, filename: str):
         "chunks": chunks,
     }
 
+@app.get("/api/debug/facts")
+def api_debug_facts(vendor: str):
+    """Return every extracted structured fact we hold for one vendor."""
+    from . import structured
+    from .vendor_index import get_vendor_index
+
+    resolved = get_vendor_index().resolve(vendor)
+    if not resolved.canonical:
+        raise HTTPException(404, f"No vendor found for '{vendor}'.")
+    return {
+        "query": vendor,
+        "canonical": resolved.canonical,
+        "resolve_method": resolved.method,
+        "facts": structured.get_all_facts_for_vendor(resolved.canonical),
+    }
 
 @app.get("/api/vendor-resolve")
 def api_vendor_resolve(q: str):

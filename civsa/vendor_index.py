@@ -166,6 +166,22 @@ class VendorIndex:
         if q_norm in self._aliases:
             return ResolveResult(self._aliases[q_norm], 0.95, "alias")
 
+        # 3.5. First-word match — user typed the distinctive first token.
+        #      Covers short queries like "rajshree" or "kumar" that would
+        #      otherwise fail because the fuzzy/substring ratios penalise
+        #      long trailing words the query didn't include.
+        q_first_tokens = q_norm.split()
+        if q_first_tokens:
+            q_first = q_first_tokens[0]
+            first_word_hits = [
+                v for v in self._canonical
+                if (_normalise(v).split() or [v.lower()])[0] == q_first
+            ]
+            if len(first_word_hits) == 1:
+                return ResolveResult(first_word_hits[0], 0.90, "first_word")
+            # Ambiguous (two vendors share a first word) → fall through to
+            # fuzzy/substring, which will surface both in `candidates`.
+
         # 4. Fuzzy match (SequenceMatcher on normalised strings).
         scored: list[tuple[str, float]] = []
         for v in self._canonical:

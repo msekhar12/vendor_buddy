@@ -1,0 +1,17 @@
+{
+  "vendor": "Kaveri Scientific",
+  "date": "2026-09-05",
+  "docs": [
+    {
+      "filename": "kaveri_scientific_quote.pdf",
+      "labels": [
+        "quote"
+      ],
+      "label_source": "user",
+      "sha256": "f83bf6a1e4d39fa9cfed0b89015d01d86e1cfd3566c08c9acc9f180e57fed97c",
+      "size_bytes": 5818,
+      "uploaded_by": "anonymous",
+      "uploaded_at": "2026-09-05T16:22:48+00:00"
+    }
+  ]
+}

@@ -432,27 +432,44 @@ askform.addEventListener("submit", async (e) => {
   }
 });
 
+const ROUTE_META = {
+  structured_sql: { cls: "route-sql", label: "SQL fact" },
+  structured_sql_empty: { cls: "route-sql-empty", label: "SQL · no rows" },
+  structured_corpus: { cls: "route-sql", label: "Corpus lookup" },
+  vendor_scoped: { cls: "route-vendor", label: "Vendor scoped" },
+  rag: { cls: "route-rag", label: "Retrieved" },
+  rag_empty: { cls: "route-rag-empty", label: "No relevant docs" },
+  unrelated: { cls: "route-refuse", label: "Off-topic" },
+};
+
 function renderAnswer(question, body) {
   const card = document.createElement("div");
   card.className = "card";
+
   if (!body.allowed) {
     card.innerHTML = `
-      <span class="badge refuse">Gate · ${escapeHTML(body.reason || "rejected")}</span>
+      <span class="route-badge route-refuse">Blocked · ${escapeHTML(body.reason || "rejected")}</span>
       <div class="body">${escapeHTML(body.message)}</div>`;
-  } else {
-    const srcHtml =
-      body.sources && body.sources.length
-        ? `<div class="sources"><details><summary>Sources</summary>
-         <pre>${escapeHTML(JSON.stringify(body.sources, null, 2))}</pre></details></div>`
-        : "";
-    const route = body.route_method
-      ? ` <span style="color:var(--ink-3);font-size:11px">(${escapeHTML(body.route_method)})</span>`
-      : "";
-    card.innerHTML = `
-      <span class="badge intent">Answer${route}</span>
-      <div class="body">${escapeHTML(body.answer).replace(/\n/g, "<br>")}</div>
-      ${srcHtml}`;
+    answerBox.innerHTML = "";
+    answerBox.appendChild(card);
+    return;
   }
+
+  const route = body.route_method || "unknown";
+  const meta = ROUTE_META[route] || { cls: "route-unknown", label: route };
+  const routeHtml = `<span class="route-badge ${meta.cls}">${escapeHTML(meta.label)}</span>`;
+
+  const srcHtml =
+    body.sources && body.sources.length
+      ? `<div class="sources"><details><summary>Sources (${body.sources.length})</summary>
+         <pre>${escapeHTML(JSON.stringify(body.sources, null, 2))}</pre></details></div>`
+      : "";
+
+  card.innerHTML = `
+    ${routeHtml}
+    <div class="body">${escapeHTML(body.answer).replace(/\n/g, "<br>")}</div>
+    ${srcHtml}`;
+
   answerBox.innerHTML = "";
   answerBox.appendChild(card);
 }
@@ -884,6 +901,115 @@ if (chunkBtn) {
       out.textContent = `Error: ${e.message}`;
     }
   });
+}
+
+/* ---------- Structured fact viewer ---------- */
+const factsBtn = document.getElementById("facts-btn");
+const factsInp = document.getElementById("facts-vendor");
+const factsOut = document.getElementById("facts-out");
+
+if (factsBtn && factsInp && factsOut) {
+  factsBtn.addEventListener("click", async () => {
+    const q = (factsInp.value || "").trim();
+    if (!q) return;
+    factsOut.innerHTML = `<div class="loading">Loading…</div>`;
+    try {
+      const r = await fetch(
+        `${API}/api/debug/facts?vendor=${encodeURIComponent(q)}`,
+      );
+      if (!r.ok) throw new Error((await r.text()) || `HTTP ${r.status}`);
+      const data = await r.json();
+      factsOut.innerHTML = renderFacts(data);
+    } catch (e) {
+      factsOut.innerHTML = `<div class="empty">Error: ${escapeHTML(e.message)}</div>`;
+    }
+  });
+  factsInp.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") factsBtn.click();
+  });
+}
+
+function renderFacts(data) {
+  const { canonical, resolve_method, facts } = data;
+  const vf = facts.vendor_facts || [];
+  const ct = facts.commercial_terms || [];
+  const qi = facts.quote_items || [];
+
+  const vfRow = vf[0] || {};
+  const ctRow = ct[0] || {};
+
+  const isoCell = (v) =>
+    v === 1
+      ? `<span class="iso-yes">✓ yes</span>`
+      : v === 0
+        ? `<span class="iso-no">✗ no</span>`
+        : `<span class="iso-unk">— unknown</span>`;
+
+  const kv = (label, val) =>
+    `<tr><th>${escapeHTML(label)}</th><td>${val == null || val === "" ? "<em>—</em>" : escapeHTML(String(val))}</td></tr>`;
+
+  const vendorFactsTbl = `
+    <h4>vendor_facts (${vf.length} row${vf.length !== 1 ? "s" : ""})</h4>
+    <table class="facts-table">
+      ${kv("Canonical vendor", canonical)}
+      <tr><th>ISO 9001</th><td>${isoCell(vfRow.iso_9001)}</td></tr>
+      <tr><th>ISO 14001</th><td>${isoCell(vfRow.iso_14001)}</td></tr>
+      <tr><th>ISO/IEC 17025</th><td>${isoCell(vfRow.iso_17025)}</td></tr>
+      ${kv("Other certs", vfRow.other_certs)}
+      ${kv("Address", vfRow.address)}
+      ${kv("GSTIN", vfRow.gstin)}
+      ${kv("PAN", vfRow.pan)}
+      ${kv("CIN", vfRow.cin)}
+      ${kv("Quote number", vfRow.quote_number)}
+      ${kv("Quote date", vfRow.quote_date)}
+      ${kv("Source", vfRow.source_doc)}
+    </table>`;
+
+  const termsTbl = `
+    <h4>commercial_terms (${ct.length} row${ct.length !== 1 ? "s" : ""})</h4>
+    <table class="facts-table">
+      ${kv("Delivery (min days)", ctRow.delivery_days_min)}
+      ${kv("Delivery (max days)", ctRow.delivery_days_max)}
+      ${kv("Payment (days net)", ctRow.payment_days_net)}
+      ${kv("Payment terms (raw)", ctRow.payment_terms_raw)}
+      ${kv("Freight terms", ctRow.freight_terms)}
+      ${kv("Warranty terms", ctRow.warranty_terms)}
+      ${kv("GST %", ctRow.gst_percentage)}
+      ${kv("Quote validity (days)", ctRow.quote_validity_days)}
+    </table>`;
+
+  const itemsTbl = qi.length
+    ? `<h4>quote_items (${qi.length} row${qi.length !== 1 ? "s" : ""})</h4>
+       <table class="facts-table items">
+         <thead><tr><th>SKU</th><th>Description</th><th>Unit</th>
+                    <th class="num">Qty</th><th class="num">Unit price (INR)</th>
+                    <th class="num">Line total (INR)</th></tr></thead>
+         <tbody>
+         ${qi
+           .map(
+             (r) => `
+           <tr>
+             <td>${escapeHTML(r.sku || "")}</td>
+             <td>${escapeHTML(r.description || "")}</td>
+             <td>${escapeHTML(r.unit || "")}</td>
+             <td class="num">${r.quantity ?? ""}</td>
+             <td class="num">${r.unit_price_inr != null ? Math.round(r.unit_price_inr).toLocaleString("en-IN") : ""}</td>
+             <td class="num">${r.line_total_inr != null ? Math.round(r.line_total_inr).toLocaleString("en-IN") : ""}</td>
+           </tr>`,
+           )
+           .join("")}
+         </tbody>
+       </table>`
+    : `<h4>quote_items (0 rows)</h4><div class="empty">No line items extracted.</div>`;
+
+  return `
+    <div class="facts-header">
+      Resolved as <strong>${escapeHTML(canonical)}</strong>
+      <span class="fmeta">(method: ${escapeHTML(resolve_method)})</span>
+    </div>
+    ${vendorFactsTbl}
+    ${termsTbl}
+    ${itemsTbl}`;
 }
 
 /* ============================================================

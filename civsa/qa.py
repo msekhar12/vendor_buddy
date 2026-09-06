@@ -393,7 +393,7 @@ def _try_structured(query: str) -> dict | None:
     # Accept both straight ' and curly ’
     m = re.search(
         r"\b(?:what\s+is|what(?:'|\u2019)?s|give\s+me|show\s+me|tell\s+me)\s+"
-        r"(.+?)(?:'|\u2019)s\s+"
+        r"(.+?)(?:'|\u2019)s?\s+"
         r"(gstin|gst\s*number|pan|cin|address|location|"
         r"quote\s*number|quote\s*no\.?|quote\s*date)"
         r"\s*\??\s*$",
@@ -494,6 +494,41 @@ def _try_structured(query: str) -> dict | None:
                 "sources": [{"vendor": resolved.canonical}],
                 "route_method": "structured_sql"}
 
+
+    # ---- Vendor's quote(s): "what is the quote of X" / "X's quote" ----
+    m_of  = re.search(
+        r"\b(?:what\s+is|what(?:'|\u2019)?s|give\s+me|show\s+me|tell\s+me)\s+"
+        r"(?:the\s+)?quotes?\s+"
+        r"(?:of|for|from|by)\s+(.+?)(?:\?|$)",
+        ql,
+    )
+    m_pos = re.search(
+        r"\b(?:what\s+is|what(?:'|\u2019)?s|give\s+me|show\s+me|tell\s+me)\s+"
+        r"(.+?)(?:'|\u2019)s?\s+quotes?\s*\??\s*$",
+        ql,
+    )
+    m = m_of or m_pos
+    if m:
+        vendor_str = m.group(1).strip().strip('"\'')
+        resolved = get_vendor_index().resolve(vendor_str)
+        if not resolved.canonical:
+            return {"answer": f'No records for a vendor called "{vendor_str}".',
+                    "sources": [], "route_method": "structured_sql_empty"}
+        rows = structured.items_from_vendor(resolved.canonical)
+        if not rows:
+            return {"answer": f"{resolved.canonical} has no extracted line items.",
+                    "sources": [], "route_method": "structured_sql_empty"}
+        lines = [f"{resolved.canonical} — {len(rows)} line item"
+                 f"{'s' if len(rows) != 1 else ''}:", ""]
+        for r in rows:
+            price = (f"INR {r['unit_price_inr']:,.0f}"
+                     if r['unit_price_inr'] else "N/A")
+            unit = f"/{r['unit']}" if r.get('unit') else ""
+            lines.append(f"• {r['description']} — {price}{unit}")
+        return {"answer": "\n".join(lines),
+                "sources": [{"vendor": resolved.canonical}],
+                "route_method": "structured_sql"}
+
     # ================================================================
     # GROUP B · Multi-vendor filter queries
     # ================================================================
@@ -551,13 +586,15 @@ def _try_structured(query: str) -> dict | None:
         return _format_vendor_list(f"Vendors based in {place}:", rows)
 
     # ---- Recent quotes by issue date ("last N days/weeks/months") ----
+    #  Matches:  "last 30 days", "past 2 weeks", "in the last week"
     m = re.search(
         r"\b(?:last|past|previous|within|in\s+the\s+last)\s+"
-        r"(\d+)\s+(day|days|week|weeks|month|months)\b",
+        r"(?:(\d+)\s+)?"                                  # ← digit now optional
+        r"(day|days|week|weeks|month|months)\b",
         ql,
     )
     if m and re.search(r"\bquot|submit|received|issued|dated\b", ql):
-        n = int(m.group(1))
+        n = int(m.group(1)) if m.group(1) else 1          # ← default to 1
         unit_mul = {"day": 1, "days": 1,
                     "week": 7, "weeks": 7,
                     "month": 30, "months": 30}[m.group(2)]
@@ -651,18 +688,9 @@ def _try_structured(query: str) -> dict | None:
     # GROUP E · Generic catch-alls (must be LAST)
     # ================================================================
 
-    # ---- Corpus counts ("how many …?") ----
+    # ---- Corpus counts ("how many …?") — items first, quotes last ----
     if re.search(r"\bhow\s+many\b", ql):
-        if re.search(r"\bvendor", ql):
-            n = structured.vendor_count()
-            return {"answer": f"The corpus has {n} vendor"
-                              f"{'s' if n != 1 else ''}.",
-                    "sources": [], "route_method": "structured_sql"}
-        if re.search(r"\bquotes?|quotations?\b", ql):
-            n = structured.quote_count()
-            return {"answer": f"The corpus has {n} quote document"
-                              f"{'s' if n != 1 else ''}.",
-                    "sources": [], "route_method": "structured_sql"}
+        # 1) items — needs to run before quotes so "items ... quote?" wins
         if re.search(r"\bitems?|line\s*items?|skus?\b", ql):
             vh = _detect_vendor(query)
             n = structured.item_count(vh)
@@ -672,6 +700,18 @@ def _try_structured(query: str) -> dict | None:
                         "sources": [], "route_method": "structured_sql"}
             return {"answer": f"The corpus has {n} line item"
                               f"{'s' if n != 1 else ''} across all quotes.",
+                    "sources": [], "route_method": "structured_sql"}
+        # 2) quotes as a noun (not the verb "to quote")
+        if re.search(r"\bquotes?|quotations?\b", ql):
+            n = structured.quote_count()
+            return {"answer": f"The corpus has {n} quote document"
+                              f"{'s' if n != 1 else ''}.",
+                    "sources": [], "route_method": "structured_sql"}
+        # 3) vendors — broadest
+        if re.search(r"\bvendor", ql):
+            n = structured.vendor_count()
+            return {"answer": f"The corpus has {n} vendor"
+                              f"{'s' if n != 1 else ''}.",
                     "sources": [], "route_method": "structured_sql"}
 
     # ---- Generic "iso certified?" without a specific standard ----
@@ -830,27 +870,20 @@ def answer(query: str, intent: str | None = None) -> dict:
     print(f"[qa] shape: multi_vendor={is_multi} simple={is_simple} "
           f"vendor_hint={vendor_hint}", flush=True)
 
-    expanded = _expand_query(query)
-    if expanded.lower() == "unrelated to procurement":
-        return {"answer": "Not procurement-related.", "sources": [],
-                "route_method": "unrelated"}
-    print(f"[qa] original: {query!r}", flush=True)
-    print(f"[qa] expanded: {expanded!r}", flush=True)
-
-
-    expanded = _expand_query(query)
-    if expanded.lower() == "unrelated to procurement":
-        return {"answer": "Not procurement-related.", "sources": [],
-                "route_method": "unrelated"}
-    print(f"[qa] original: {query!r}", flush=True)
-    print(f"[qa] expanded: {expanded!r}", flush=True)
-
-    # ---- NEW: Path 0 — try structured DB first (deterministic answers) ----
+    # ---- Path 0: structured DB FIRST — no LLM expansion required ----
     structured_result = _try_structured(query)
     if structured_result:
         print(f"[qa] structured route: "
               f"{structured_result['route_method']}", flush=True)
-        return structured_result    
+        return structured_result
+
+    # Only if SQL didn't fire, do the LLM expansion for RAG
+    expanded = _expand_query(query)
+    if expanded.lower() == "unrelated to procurement":
+        return {"answer": "Not procurement-related.", "sources": [],
+                "route_method": "unrelated"}
+    print(f"[qa] original: {query!r}", flush=True)
+    print(f"[qa] expanded: {expanded!r}", flush=True)
 
     # ---- Path A: vendor-scoped (single-subject question) ----
     if vendor_hint:

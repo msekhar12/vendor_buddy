@@ -1,0 +1,44 @@
+{
+  "timestamp": "20260905_234028",
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "pass_rate": 1.0,
+  "elapsed_s": 6.6,
+  "by_family": {
+    "sql": {
+      "pass": 1,
+      "fail": 0
+    }
+  },
+  "results": [
+    {
+      "id": "field-address-poss",
+      "family": "sql",
+      "query": "what is Aditya's address?",
+      "expected": {
+        "id": "field-address-poss",
+        "family": "sql",
+        "query": "what is Aditya's address?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Aditya"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Aditya Lab Solutions — address: Shop 14, Sinhagad Road, Wadgaon Budruk, Pune – 411041, Maharashtra",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Aditya Lab Solutions/2026-09-03/aditya_lab_solutions_quote.pdf",
+            "vendor": "Aditya Lab Solutions"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 6.581
+    }
+  ]
+}

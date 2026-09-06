@@ -1,0 +1,431 @@
+[
+  {
+    "id": "corp-list-all",
+    "family": "sql",
+    "query": "list all vendors",
+    "expected_route": "structured_corpus",
+    "must_contain_all": [
+      "Aditya",
+      "Nirmala",
+      "Deccan",
+      "Gangotri",
+      "Rajshree",
+      "Kaveri",
+      "Polar",
+      "Associated"
+    ]
+  },
+  {
+    "id": "corp-count-vendors",
+    "family": "sql",
+    "query": "how many vendors do we have?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["8"]
+  },
+  {
+    "id": "corp-count-quotes",
+    "family": "sql",
+    "query": "how many quotes are in the corpus?",
+    "expected_route": "structured_sql"
+  },
+  {
+    "id": "corp-count-items-vendor",
+    "family": "sql",
+    "query": "how many items did Nirmala quote?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Nirmala"]
+  },
+
+  {
+    "id": "iso-9001-list",
+    "family": "sql",
+    "query": "which vendors are ISO 9001 certified?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Nirmala", "Gangotri", "Kaveri"],
+    "must_not_contain": ["Aditya", "Deccan"]
+  },
+  {
+    "id": "iso-14001-list",
+    "family": "sql",
+    "query": "which vendors are ISO 14001 certified?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Gangotri"]
+  },
+  {
+    "id": "iso-17025-list",
+    "family": "sql",
+    "query": "which vendors are ISO 17025 certified?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Kaveri"]
+  },
+  {
+    "id": "iso-non-iso",
+    "family": "sql",
+    "query": "list non-ISO vendors",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Aditya", "Deccan"]
+  },
+  {
+    "id": "iso-single-yes",
+    "family": "sql",
+    "query": "is Nirmala ISO 9001 certified?",
+    "expected_route": "structured_sql",
+    "must_contain_all": ["Nirmala"],
+    "must_contain_any": ["holds", "Yes", "yes"]
+  },
+  {
+    "id": "iso-single-no",
+    "family": "sql",
+    "query": "is Aditya ISO 9001 certified?",
+    "expected_route": "structured_sql",
+    "must_contain_all": ["Aditya"],
+    "must_contain_any": ["NOT", "not"]
+  },
+  {
+    "id": "iso-single-multi",
+    "family": "sql",
+    "query": "is Gangotri ISO certified?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Gangotri"]
+  },
+  {
+    "id": "iso-single-kaveri",
+    "family": "sql",
+    "query": "is Kaveri ISO 9001 certified?",
+    "expected_route": "structured_sql",
+    "must_contain_all": ["Kaveri"],
+    "must_contain_any": ["holds", "Yes", "yes"]
+  },
+  {
+    "id": "iso-single-missing",
+    "family": "sql",
+    "query": "is Sunrise Industries ISO 9001 certified?",
+    "expected_route": "structured_sql_empty"
+  },
+
+  {
+    "id": "gst-yes-list",
+    "family": "sql",
+    "query": "which vendors have GSTIN?",
+    "expected_route": "structured_sql"
+  },
+  {
+    "id": "gst-no-list",
+    "family": "sql",
+    "query": "which suppliers do not have GST?",
+    "expected_route": "structured_sql"
+  },
+  {
+    "id": "field-gstin-nirmala",
+    "family": "sql",
+    "query": "what is Nirmala's GSTIN?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Nirmala", "GSTIN", "gstin"]
+  },
+  {
+    "id": "field-gstin-kaveri",
+    "family": "sql",
+    "query": "what is Kaveri's GSTIN?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Kaveri", "GSTIN", "gstin"]
+  },
+  {
+    "id": "field-pan-aditya",
+    "family": "sql",
+    "query": "what is Aditya's PAN?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Aditya", "PAN", "pan"]
+  },
+  {
+    "id": "field-address-of-gangotri",
+    "family": "sql",
+    "query": "give me the address of Gangotri",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Gangotri", "address"]
+  },
+  {
+    "id": "field-address-poss",
+    "family": "sql",
+    "query": "what is Aditya's address?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Aditya"]
+  },
+  {
+    "id": "field-quote-num",
+    "family": "sql",
+    "query": "show me Nirmala's quote number",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Nirmala"]
+  },
+
+  {
+    "id": "price-cheapest-ethanol",
+    "family": "sql",
+    "query": "cheapest ethanol",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Aditya", "1450", "1,450"]
+  },
+  {
+    "id": "price-cheapest-methanol",
+    "family": "sql",
+    "query": "cheapest methanol",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Deccan", "2480", "2,480"]
+  },
+  {
+    "id": "price-cheapest-naoh",
+    "family": "sql",
+    "query": "cheapest sodium hydroxide",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Aditya"]
+  },
+  {
+    "id": "price-expensive-methanol",
+    "family": "sql",
+    "query": "most expensive methanol",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Kaveri", "2950", "2,950"]
+  },
+  {
+    "id": "price-who-supplies-meth",
+    "family": "sql",
+    "query": "who can supply methanol?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Nirmala", "Deccan", "Gangotri", "Kaveri"]
+  },
+  {
+    "id": "price-who-sells-hcl",
+    "family": "sql",
+    "query": "which vendors sell HCl?",
+    "expected_route": "structured_sql"
+  },
+  {
+    "id": "price-of-from-nirmala",
+    "family": "sql",
+    "query": "price of methanol from Nirmala",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Nirmala", "2650", "2,650"]
+  },
+  {
+    "id": "price-of-from-kaveri",
+    "family": "sql",
+    "query": "price of ethanol from Kaveri",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Kaveri", "2100", "2,100"]
+  },
+
+  {
+    "id": "items-what-quoted-aditya",
+    "family": "sql",
+    "query": "what did Aditya quote?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Aditya"]
+  },
+  {
+    "id": "items-quote-of-nirmala",
+    "family": "sql",
+    "query": "what is the quote of Nirmala?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Nirmala"]
+  },
+  {
+    "id": "items-quote-poss-kaveri",
+    "family": "sql",
+    "query": "give me Kaveri's quote",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Kaveri"]
+  },
+
+  {
+    "id": "delivery-fastest",
+    "family": "sql",
+    "query": "fastest delivery",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Deccan"]
+  },
+  {
+    "id": "delivery-slowest",
+    "family": "sql",
+    "query": "slowest delivery",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Aditya"]
+  },
+  {
+    "id": "delivery-under-7",
+    "family": "sql",
+    "query": "vendors delivering under 7 days",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Deccan"]
+  },
+  {
+    "id": "payment-longest",
+    "family": "sql",
+    "query": "longest credit period",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Kaveri"]
+  },
+  {
+    "id": "payment-shortest",
+    "family": "sql",
+    "query": "shortest credit",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Aditya"]
+  },
+
+  {
+    "id": "time-last-30-days",
+    "family": "sql",
+    "query": "quotes in the last 30 days",
+    "expected_route": "structured_sql"
+  },
+  {
+    "id": "time-last-week",
+    "family": "sql",
+    "query": "quotes received in the last week",
+    "expected_route": "structured_sql"
+  },
+
+  {
+    "id": "loc-mumbai",
+    "family": "sql",
+    "query": "vendors from Mumbai",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Nirmala"]
+  },
+  {
+    "id": "loc-pune",
+    "family": "sql",
+    "query": "vendors based in Pune",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Aditya"]
+  },
+  {
+    "id": "loc-hyderabad",
+    "family": "sql",
+    "query": "vendors located in Hyderabad",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Deccan"]
+  },
+  {
+    "id": "loc-bengaluru",
+    "family": "sql",
+    "query": "vendors from Bengaluru",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Kaveri"]
+  },
+
+  {
+    "id": "resolve-partial-rajshree",
+    "family": "vendor",
+    "query": "is Rajshree ISO 9001 certified?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Rajshree"]
+  },
+  {
+    "id": "resolve-partial-kaveri",
+    "family": "vendor",
+    "query": "what is kaveri's GSTIN?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Kaveri"]
+  },
+  {
+    "id": "resolve-partial-polar",
+    "family": "vendor",
+    "query": "what is Polar's address?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Polar"]
+  },
+  {
+    "id": "resolve-lowercase",
+    "family": "vendor",
+    "query": "what is nirmala's GSTIN?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Nirmala"]
+  },
+  {
+    "id": "resolve-short-name",
+    "family": "vendor",
+    "query": "what is deccan's address?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Deccan"]
+  },
+  {
+    "id": "resolve-typo",
+    "family": "vendor",
+    "query": "what is nirmla's GSTIN?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Nirmala"]
+  },
+  {
+    "id": "resolve-missing",
+    "family": "vendor",
+    "query": "what is Sunrise Industries' GSTIN?",
+    "expected_route": "structured_sql_empty"
+  },
+
+  {
+    "id": "edge-quoted-query",
+    "family": "edge",
+    "query": "\"show me Aditya's quote number\"",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["Aditya"]
+  },
+  {
+    "id": "edge-supplier-synonym",
+    "family": "edge",
+    "query": "which suppliers do not have GST?",
+    "expected_route": "structured_sql"
+  },
+  {
+    "id": "edge-company-synonym",
+    "family": "edge",
+    "query": "how many companies do we have?",
+    "expected_route": "structured_sql",
+    "must_contain_any": ["8"]
+  },
+  {
+    "id": "edge-firm-synonym",
+    "family": "edge",
+    "query": "which firms are ISO 9001 certified?",
+    "expected_route": "structured_sql"
+  },
+  {
+    "id": "edge-most-expensive-dot",
+    "family": "edge",
+    "query": "most expensive methanol.",
+    "expected_route": "structured_sql"
+  },
+
+  {
+    "id": "gate-sports",
+    "family": "gate",
+    "query": "who won the cricket world cup?",
+    "expected_allowed": false
+  },
+  {
+    "id": "gate-weather",
+    "family": "gate",
+    "query": "what is the weather today in Delhi?",
+    "expected_allowed": false
+  },
+  {
+    "id": "gate-recipe",
+    "family": "gate",
+    "query": "recipe for making masala chai",
+    "expected_allowed": false
+  },
+
+  {
+    "id": "rag-warranty",
+    "family": "rag",
+    "query": "what warranty does Nirmala offer?",
+    "expected_route": "vendor_scoped",
+    "must_contain_any": ["Nirmala"]
+  },
+  {
+    "id": "rag-packaging",
+    "family": "rag",
+    "query": "how are Gangotri's reagents packaged?",
+    "expected_route": "vendor_scoped"
+  }
+]

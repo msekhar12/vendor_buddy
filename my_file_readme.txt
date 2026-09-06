@@ -89,3 +89,88 @@ what is the GSTIN of Nirmala Chemicals?
 "give me Deccan's PAN" → Deccan Chemicals & Reagents — pan: AAAFD3320H
 "tell me the address of Gangotri" → the address string
 "show me Aditya's quote number" → the quote reference number
+"what is the quote of gangotri?" → Answer (structured_sql); lists Gangotri's line items
+"give me Nirmala's quote" → same route (possessive branch)
+"show me the quotes from Aditya" → same route (of-form branch, "from" synonym)
+"tell me Kaveri's quote" → same route
+"what did Gangotri quote?" → still SQL (existing block, unchanged)
+"what is Gangotri's quote number?" → still SQL, but via the field-lookup block (different, more specific answer)
+
+email IDs from hyderabad vendors.
+
+
+
+
+
+
+
+
+
+Phase B — Next 3: Deployment + viva prep (1–2 days)
+
+Same three deliverables from the earlier roadmap. Precise scope:
+
+B1. One-command install (Makefile + scripts/setup.sh)
+
+make setup creates the venv, pip install -r requirements.txt, downloads NLTK data, pulls the two Ollama models, creates empty documents/ and indexes/ folders, seeds nothing.
+make api starts uvicorn on port 8000.
+make demo re-uploads the 5 sample PDFs I generated, runs the eval, opens the browser.
+Passes clean on a fresh clone → clean venv → make setup && make demo in under 5 minutes.
+
+B2. Demo script (docs/DEMO.md)
+
+Ten canned queries in an exact order, each hitting a different pillar:
+Upload flow (drag-drop a new PDF)
+Auto-tag (show "other" being suggested)
+Gate fast-path (what is Nirmala's GSTIN? — no LLM tie-break)
+Corpus lookup (list all vendors)
+Single-vendor ISO SQL (is Aditya ISO 9001 certified? → answers NOT)
+Multi-vendor SQL (cheapest ethanol)
+Vendor resolution (is rajshree iso certified? — first-word match)
+Table-aware chunking (fact viewer for Nirmala → 5 line items)
+Vendor-scoped RAG (what warranty does Nirmala offer?)
+Off-topic gate rejection (who won the world cup?)
+Each with 2 sentences of narration for the committee.
+
+B3. Architecture one-pager (docs/ARCHITECTURE.md + published as artifact)
+
+Single diagram: upload → chunker → dual store (Chroma + TF-IDF) + LLM extractor → SQLite. Query: input → gate → SQL router → SQL / vendor-scoped RAG / broad RAG → LLM synthesis → answer + citations.
+Table of the 15 SQL router patterns.
+Eval scoreboard with your final pass rate.
+Ready to paste into your report.
+
+I can publish B3 as an updated HTML artifact when you're ready — it becomes your "current" technical design doc and supersedes the old scoping doc.
+
+Phase C — Report writing & submission (owned by you, I assist)
+
+The M.Tech report needs sections your codebase now supports evidence for:
+
+Motivation / problem statement (Phase 1 material)
+Related work (RAG limitations, negation blindness, need for structured routing)
+Architecture (from B3)
+Implementation (walkthrough of the 4 pillars: vendor resolver, table chunker, structured DB, gate)
+Evaluation (from the eval harness — before/after numbers, per-family breakdown)
+Limitations & future work (LLM query router, cross-encoder re-ranker, more data)
+
+Send me the report template your institute uses and I'll help fill each section with what we've built, citations included.
+
+Suggested sequence
+This week: Run eval → Phase A triage → land at ≥85% pass rate.
+Next week: Phase B (make setup, demo script, architecture doc). Reply "start Phase B" and I'll deliver all three in one code drop.
+After viva: if you want to keep improving, add an LLM query router (catches phrasings the regex misses) and a cross-encoder re-ranker (better RAG quality). Both are ~2 days each and non-blocking for the viva.
+
+Right now, the single most valuable thing to do next: run python -m scripts.eval and paste me the summary + any failure lines. From that I can tell you exactly which routes need tightening before you invest time in Phase B.
+
+
+===========
+
+Concrete next step, if you want to build this
+
+Reply "scaffold vendor scoring" and I'll give you:
+
+civsa/vendor_score.py — the composite score computation and per-feature attribution using your existing SQL helpers
+civsa/api.py — a new GET /api/vendor-score/{vendor} endpoint
+Vendors tab UI update — attribution bar per vendor
+One row in eval_queries.json — "score aditya" → structured_sql
+
+Roughly one code drop, one day of your time.

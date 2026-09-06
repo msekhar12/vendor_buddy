@@ -19,17 +19,34 @@ _PROCUREMENT_ALLOW = re.compile(
     r"price|cost|rate|amount|total|payment|credit|"
     r"delivery|lead\s*time|freight|packaging|warranty|"
     r"chemical|reagent|solvent|acid|"
-    # Known vendors — cheap and effective for the current corpus
-    r"nirmala|kaveri|aditya|gangotri|deccan|rajshree"
+    r"address|location|phone|email|contact|manufacturer"   # ← field words
     r")\b",
     re.IGNORECASE,
 )
 
+_CAPITALISED_PHRASE = re.compile(r"[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,3}")
+
 
 def looks_like_procurement(query: str) -> bool:
-    """Fast-path: any query containing a strong procurement token is
-    obviously in-domain and does not need the classifier's opinion."""
-    return bool(_PROCUREMENT_ALLOW.search(query))
+    """
+    True if the query is obviously in-domain. Two signals:
+      (a) A word from the procurement vocab appears.
+      (b) A capitalised phrase in the query resolves to a known vendor.
+    """
+    if _PROCUREMENT_ALLOW.search(query):
+        return True
+
+    # Vendor-name signal: any capitalised phrase that maps to a real vendor
+    try:
+        from ..vendor_index import get_vendor_index
+        idx = get_vendor_index()
+        for candidate in _CAPITALISED_PHRASE.findall(query):
+            if idx.resolve(candidate).canonical:
+                return True
+    except Exception:  # noqa: BLE001
+        pass
+
+    return False
 
 # Pattern list gathered from HackAPrompt + common jailbreak phrasings
 _INJECTION = re.compile(
