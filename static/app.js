@@ -20,6 +20,7 @@ document.querySelectorAll(".tab").forEach((btn) => {
     document.getElementById(btn.dataset.tab).classList.add("active");
     if (btn.dataset.tab === "vendors") loadVendors();
     if (btn.dataset.tab === "debug") loadDebugStats();
+    if (btn.dataset.tab === "rankings") initRankings();
   });
 });
 
@@ -1010,6 +1011,254 @@ function renderFacts(data) {
     ${vendorFactsTbl}
     ${termsTbl}
     ${itemsTbl}`;
+}
+
+/* ============================================================
+   RANKINGS TAB
+   ============================================================ */
+const rankBtn = document.getElementById("rank-btn");
+const rankItemSingle = document.getElementById("rank-item-single");
+const rankItemBasket = document.getElementById("rank-item-basket");
+const rankResults = document.getElementById("rank-results");
+const rankWeights = document.getElementById("rank-weights");
+
+const DEFAULT_WEIGHTS = { S1: 0.35, S2: 0.2, S3: 0.2, S4: 0.15, S5: 0.1 };
+const CRITERION_LABELS = {
+  S1: "Price",
+  S2: "Quality",
+  S3: "Delivery",
+  S4: "Financial Risk",
+  S5: "ESG",
+};
+const CRITERION_ACTIVE = {
+  S1: true,
+  S2: false,
+  S3: false,
+  S4: false,
+  S5: false,
+};
+let RANK_ITEMS = [];
+
+async function initRankings() {
+  if (RANK_ITEMS.length) return;
+  try {
+    const r = await fetch(`${API}/api/rankings/items`);
+    const data = await r.json();
+    RANK_ITEMS = data.items || [];
+    populateItemPickers();
+    populateWeights();
+  } catch (e) {
+    rankResults.innerHTML = `<div class="empty">Could not load items.</div>`;
+  }
+}
+
+function populateItemPickers() {
+  rankItemSingle.innerHTML = RANK_ITEMS.map(
+    (it) => `<option value="${escapeHTML(it)}">${escapeHTML(it)}</option>`,
+  ).join("");
+  rankItemBasket.innerHTML = RANK_ITEMS.map(
+    (it) => `<label class="basket-chip">
+      <input type="checkbox" value="${escapeHTML(it)}">
+      <span>${escapeHTML(it)}</span>
+    </label>`,
+  ).join("");
+}
+
+function populateWeights() {
+  rankWeights.innerHTML = Object.keys(DEFAULT_WEIGHTS)
+    .map(
+      (k) => `
+    <div class="weight-row ${CRITERION_ACTIVE[k] ? "" : "disabled"}">
+      <label>${k} · ${CRITERION_LABELS[k]}
+        ${CRITERION_ACTIVE[k] ? "" : '<span class="no-data">no data yet</span>'}
+      </label>
+      <input type="range" min="0" max="1" step="0.01"
+             value="${DEFAULT_WEIGHTS[k]}" data-key="${k}"
+             ${CRITERION_ACTIVE[k] ? "" : "disabled"}>
+      <span class="weight-value" data-value="${k}">${DEFAULT_WEIGHTS[k].toFixed(2)}</span>
+    </div>
+  `,
+    )
+    .join("");
+  rankWeights.querySelectorAll('input[type="range"]').forEach((inp) => {
+    inp.addEventListener("input", (e) => {
+      const k = e.target.dataset.key;
+      rankWeights.querySelector(`[data-value="${k}"]`).textContent = parseFloat(
+        e.target.value,
+      ).toFixed(2);
+    });
+  });
+}
+
+function getCurrentWeights() {
+  const out = {};
+  rankWeights.querySelectorAll('input[type="range"]').forEach((inp) => {
+    out[inp.dataset.key] = parseFloat(inp.value);
+  });
+  return out;
+}
+
+document.querySelectorAll('input[name="rank-mode"]').forEach((rb) => {
+  rb.addEventListener("change", () => {
+    const mode = rb.value;
+    rankItemSingle.hidden = mode !== "single";
+    rankItemBasket.hidden = mode !== "basket";
+  });
+});
+
+if (rankBtn) {
+  rankBtn.addEventListener("click", async () => {
+    const mode = document.querySelector(
+      'input[name="rank-mode"]:checked',
+    ).value;
+    let items = [];
+    if (mode === "single") {
+      items = [rankItemSingle.value];
+    } else if (mode === "basket") {
+      items = Array.from(
+        rankItemBasket.querySelectorAll('input[type="checkbox"]:checked'),
+      ).map((cb) => cb.value);
+      if (!items.length) {
+        rankResults.innerHTML = `<div class="empty">Pick at least one item.</div>`;
+        return;
+      }
+    }
+    rankResults.innerHTML = `<div class="loading">Computing…</div>`;
+    try {
+      const r = await fetch(`${API}/api/rankings/rank`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode, items, weights: getCurrentWeights() }),
+      });
+      if (!r.ok) throw new Error((await r.text()) || `HTTP ${r.status}`);
+      const data = await r.json();
+      renderRanking(data);
+    } catch (e) {
+      rankResults.innerHTML = `<div class="empty">Ranking failed: ${escapeHTML(e.message)}</div>`;
+    }
+  });
+}
+
+function renderRanking(data) {
+  if (!data.rows || !data.rows.length) {
+    rankResults.innerHTML = `<div class="empty">No vendors quoted for the selected item(s).</div>`;
+    return;
+  }
+  const critKeys = ["S1", "S2", "S3", "S4", "S5"];
+  const critHeaders = critKeys
+    .map((k) => `<th class="crit-col">${k}</th>`)
+    .join("");
+
+  const rows = data.rows
+    .map((r) => {
+      const critCells = critKeys
+        .map((k) => {
+          const v = r[k];
+          if (v === null || v === undefined) {
+            return `<td class="crit-col"><span class="crit-na">—</span></td>`;
+          }
+          const color = v >= 70 ? "good" : v >= 40 ? "ok" : "poor";
+          return `<td class="crit-col">
+        <div class="mini-bar mb-${color}" style="width:${Math.max(v, 2)}%"
+             title="${k}: ${v}"></div>
+      </td>`;
+        })
+        .join("");
+      const priceCell = r.price
+        ? `INR ${Number(r.price).toLocaleString("en-IN")}`
+        : "—";
+      return `
+      <tr>
+        <td>#${r.rank}</td>
+        <td><strong>${escapeHTML(r.vendor)}</strong></td>
+        <td class="score-col">${r.composite}</td>
+        <td>${priceCell}</td>
+        ${critCells}
+        <td>
+          <button class="btn btn-ghost btn-tiny detail-btn"
+                  data-vendor="${escapeHTML(r.vendor)}">🔍</button>
+        </td>
+      </tr>`;
+    })
+    .join("");
+
+  rankResults.innerHTML = `
+    <table class="rank-table">
+      <thead>
+        <tr>
+          <th>Rank</th><th>Vendor</th><th>Composite</th><th>Price</th>
+          ${critHeaders}<th></th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div id="rank-detail"></div>`;
+
+  rankResults.querySelectorAll(".detail-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const vendor = btn.dataset.vendor;
+      const row = data.rows.find((r) => r.vendor === vendor);
+      renderRankDetail(row, data);
+    });
+  });
+}
+
+function renderRankDetail(row, data) {
+  const detail = document.getElementById("rank-detail");
+  const critKeys = ["S1", "S2", "S3", "S4", "S5"];
+  const baseline = data.baseline || {};
+  const contribs = row.contributions || {};
+
+  const bars = critKeys
+    .map((k) => {
+      const c = contribs[k];
+      if (c === null || c === undefined) {
+        return `<div class="wf-row wf-na">
+        <span class="wf-label">${k} · ${CRITERION_LABELS[k]}</span>
+        <span class="wf-bar-na">no data</span>
+      </div>`;
+      }
+      const cls = c > 0 ? "pos" : c < 0 ? "neg" : "zero";
+      const width = Math.min(Math.abs(c) * 3, 100);
+      return `<div class="wf-row">
+      <span class="wf-label">${k} · ${CRITERION_LABELS[k]}</span>
+      <div class="wf-bar-container">
+        <div class="wf-bar wf-${cls}" style="width:${width}%"></div>
+      </div>
+      <span class="wf-value ${cls}">${c > 0 ? "+" : ""}${c}</span>
+    </div>`;
+    })
+    .join("");
+
+  const baselineText =
+    Object.entries(baseline)
+      .filter(([k, v]) => v !== null)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(", ") || "—";
+
+  detail.innerHTML = `
+    <div class="rank-detail-panel">
+    <h3>${escapeHTML(row.vendor)} — score breakdown</h3>
+    <div class="wf-legend">
+      Composite ranges from 0 to 100 across the shortlist. Baseline is the
+      average of the vendors who quoted this item — a positive bar means
+      <strong>better than average</strong> for that criterion.
+    </div>
+    <div class="rank-detail-panel">
+      <h3>${escapeHTML(row.vendor)} — score breakdown</h3>
+      <div class="wf-baseline">
+        Composite: <strong>${row.composite}</strong>
+        &nbsp;·&nbsp; Baseline: ${baselineText}
+      </div>
+      <div class="wf-list">${bars}</div>
+      <div class="rank-narrative">${escapeHTML(row.narrative || "")}</div>
+      ${
+        row.source
+          ? `<div class="rank-source">Source: <code>${escapeHTML(row.source)}</code></div>`
+          : ""
+      }
+    </div>`;
+  detail.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 /* ============================================================

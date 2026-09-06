@@ -24,8 +24,9 @@ from typing import Annotated, Any, cast
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
-from . import tfidf_store, vector_store
+from . import tfidf_store, vector_store, vendor_score
 from .config import ALLOWED_LABELS, DOC_STORE, MAX_UPLOAD_MB, SQLITE_PATH
 from .extract import extract_text
 from .gate.pipeline import process as gate
@@ -555,6 +556,28 @@ def api_vendor_alias(alias: Annotated[str, Form()], canonical: Annotated[str, Fo
     except ValueError as e:
         raise HTTPException(400, str(e))
     return {"status": "added", "alias": alias, "canonical": canonical}
+
+@app.get("/api/rankings/items")
+def api_rankings_items():
+    return {"items": vendor_score.list_items()}
+
+
+class RankRequest(BaseModel):
+    mode: str = "single"
+    items: list[str] = []
+    weights: dict[str, float] | None = None
+
+
+@app.post("/api/rankings/rank")
+def api_rankings_rank(req: RankRequest):
+    result = vendor_score.compute_ranking(
+        mode=req.mode, items=req.items, weights=req.weights,
+    )
+    if "error" in result:
+        raise HTTPException(400, result["error"])
+    for row in result["rows"]:
+        row["narrative"] = vendor_score.build_narrative(row, result["baseline"])
+    return result
 
 # ================================================================
 # Static web UI

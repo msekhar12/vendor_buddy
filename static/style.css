@@ -1257,3 +1257,244 @@ button.danger:hover {
   background: #f3f4f6;
   color: #6b7280;
 }
+
+/* ---------- Rankings tab ---------- */
+.rankings-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid #eef0f4;
+  border-radius: 8px;
+}
+.mode-toggle {
+  display: flex;
+  gap: 20px;
+}
+.mode-toggle label {
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.item-picker select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d8dee6;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+}
+.basket-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid #d8dee6;
+  border-radius: 6px;
+}
+.basket-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+.basket-chip:hover {
+  background: #f5f7fa;
+}
+
+.weights-panel {
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #d8dee6;
+  border-radius: 6px;
+}
+.weights-panel summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: #495057;
+  font-weight: 500;
+}
+.weight-row {
+  display: grid;
+  grid-template-columns: 190px 1fr 44px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+.weight-row.disabled {
+  opacity: 0.4;
+}
+.weight-row label {
+  font-size: 13px;
+}
+.weight-row .no-data {
+  color: #adb5bd;
+  font-size: 11px;
+  font-style: italic;
+  margin-left: 6px;
+}
+.weight-value {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  text-align: right;
+  color: #495057;
+}
+
+.rank-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 13px;
+}
+.rank-table th,
+.rank-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #eef0f4;
+  text-align: left;
+}
+.rank-table th {
+  background: #1a3d6d;
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.score-col {
+  font-weight: 700;
+  color: #1a3d6d;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 15px;
+}
+.crit-col {
+  width: 64px;
+}
+.mini-bar {
+  height: 8px;
+  border-radius: 4px;
+  min-width: 2px;
+}
+.mb-good {
+  background: #2f9e44;
+}
+.mb-ok {
+  background: #f59f00;
+}
+.mb-poor {
+  background: #c92a2a;
+}
+.crit-na {
+  color: #adb5bd;
+  font-style: italic;
+  font-size: 11px;
+}
+.btn-tiny {
+  padding: 2px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+.rank-detail-panel {
+  margin-top: 24px;
+  padding: 22px 24px;
+  background: #f8fafc;
+  border: 1px solid #d8dee6;
+  border-radius: 8px;
+}
+.rank-detail-panel h3 {
+  margin: 0 0 12px;
+  color: #1a3d6d;
+  font-size: 16px;
+}
+.wf-baseline {
+  font-size: 12px;
+  color: #6c757d;
+  margin-bottom: 18px;
+  font-family: "JetBrains Mono", monospace;
+}
+.wf-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.wf-row {
+  display: grid;
+  grid-template-columns: 200px 1fr 64px;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+}
+.wf-label {
+  font-size: 13px;
+  color: #495057;
+  font-weight: 500;
+}
+.wf-bar-container {
+  background: #eef0f4;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.wf-bar {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+.wf-pos {
+  background: #2f9e44;
+}
+.wf-neg {
+  background: #c92a2a;
+}
+.wf-zero {
+  background: #adb5bd;
+}
+.wf-value {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  text-align: right;
+  font-weight: 600;
+}
+.wf-value.pos {
+  color: #2f9e44;
+}
+.wf-value.neg {
+  color: #c92a2a;
+}
+.wf-value.zero {
+  color: #adb5bd;
+}
+.wf-na {
+  opacity: 0.5;
+}
+.wf-bar-na {
+  font-size: 11px;
+  color: #adb5bd;
+  font-style: italic;
+  grid-column: 2 / -1;
+}
+
+.rank-narrative {
+  margin-top: 22px;
+  padding: 14px 18px;
+  background: #eff6ff;
+  border-left: 3px solid #1a3d6d;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #212529;
+}
+.rank-source {
+  margin-top: 12px;
+  font-size: 11px;
+  color: #6c757d;
+  font-family: "JetBrains Mono", monospace;
+  word-break: break-all;
+}

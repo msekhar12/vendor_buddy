@@ -36,6 +36,14 @@
         <button class="tab" data-tab="vendors" role="tab" aria-selected="false">
           Vendors
         </button>
+        <button
+          class="tab"
+          data-tab="rankings"
+          role="tab"
+          aria-selected="false"
+        >
+          Rankings
+        </button>
         <button class="tab" data-tab="debug" role="tab" aria-selected="false">
           Debug
         </button>
@@ -173,6 +181,48 @@
         </p>
         <div id="vendorlist" class="vendorlist"></div>
       </section>
+
+      <!-- ================= RANKINGS TAB ================= -->
+      <section id="rankings" class="panel" role="tabpanel">
+        <h2>Vendor Rankings</h2>
+        <p class="hint">
+          Composite S₁–S₅ score with SHAP-style attribution. Only S₁ (Price) is
+          computable from quote data alone; S₂–S₅ unlock as certificates,
+          POs/GRNs, and post-award feedback are ingested.
+        </p>
+
+        <div class="rankings-controls">
+          <div class="mode-toggle">
+            <label
+              ><input type="radio" name="rank-mode" value="single" checked />
+              Single item</label
+            >
+            <label
+              ><input type="radio" name="rank-mode" value="basket" />
+              Basket</label
+            >
+            <label
+              ><input type="radio" name="rank-mode" value="overall" /> Overall
+              vendor</label
+            >
+          </div>
+
+          <div class="item-picker">
+            <select id="rank-item-single"></select>
+            <div id="rank-item-basket" class="basket-grid" hidden></div>
+          </div>
+
+          <details class="weights-panel">
+            <summary>Criterion weights (advanced)</summary>
+            <div id="rank-weights"></div>
+          </details>
+
+          <button id="rank-btn" class="btn btn-primary">Compute ranking</button>
+        </div>
+
+        <div id="rank-results" class="rank-results"></div>
+      </section>
+
       <!-- ================= DEBUG TAB ================= -->
       <section id="debug" class="panel" role="tabpanel">
         <h1>Debug</h1>
