@@ -1,0 +1,1987 @@
+{
+  "timestamp": "20260906_143444",
+  "total": 60,
+  "passed": 60,
+  "failed": 0,
+  "pass_rate": 1.0,
+  "elapsed_s": 227.6,
+  "by_family": {
+    "sql": {
+      "pass": 43,
+      "fail": 0
+    },
+    "vendor": {
+      "pass": 7,
+      "fail": 0
+    },
+    "edge": {
+      "pass": 5,
+      "fail": 0
+    },
+    "gate": {
+      "pass": 3,
+      "fail": 0
+    },
+    "rag": {
+      "pass": 2,
+      "fail": 0
+    }
+  },
+  "results": [
+    {
+      "id": "corp-list-all",
+      "family": "sql",
+      "query": "list all vendors",
+      "expected": {
+        "id": "corp-list-all",
+        "family": "sql",
+        "query": "list all vendors",
+        "expected_route": "structured_corpus",
+        "must_contain_all": [
+          "Aditya",
+          "Nirmala",
+          "Deccan",
+          "Gangotri",
+          "Rajshree",
+          "Kaveri",
+          "Polar",
+          "Associated"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "The corpus contains 8 vendors:\n\n• Aditya Lab Solutions\n• Associated Scientific Company\n• Deccan Chemicals\n• Gangotri Reagents\n• Kaveri Scientific\n• Nirmala Chemicals\n• Polar Biosciences Private Limited\n• Rajshree Fastners",
+        "sources": [],
+        "route_method": "structured_corpus"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 12.304
+    },
+    {
+      "id": "corp-count-vendors",
+      "family": "sql",
+      "query": "how many vendors do we have?",
+      "expected": {
+        "id": "corp-count-vendors",
+        "family": "sql",
+        "query": "how many vendors do we have?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "8"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "The corpus has 8 vendors.",
+        "sources": [],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.162
+    },
+    {
+      "id": "corp-count-quotes",
+      "family": "sql",
+      "query": "how many quotes are in the corpus?",
+      "expected": {
+        "id": "corp-count-quotes",
+        "family": "sql",
+        "query": "how many quotes are in the corpus?",
+        "expected_route": "structured_sql"
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "The corpus has 10 quote documents.",
+        "sources": [],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.158
+    },
+    {
+      "id": "corp-count-items-vendor",
+      "family": "sql",
+      "query": "how many items did Nirmala quote?",
+      "expected": {
+        "id": "corp-count-items-vendor",
+        "family": "sql",
+        "query": "how many items did Nirmala quote?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Nirmala"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Nirmala Chemicals quoted 5 line items.",
+        "sources": [],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.007
+    },
+    {
+      "id": "iso-9001-list",
+      "family": "sql",
+      "query": "which vendors are ISO 9001 certified?",
+      "expected": {
+        "id": "iso-9001-list",
+        "family": "sql",
+        "query": "which vendors are ISO 9001 certified?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Nirmala",
+          "Gangotri",
+          "Kaveri"
+        ],
+        "must_not_contain": [
+          "Aditya",
+          "Deccan"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors holding ISO 9001 certification:\n\n• Nirmala Chemicals\n• Rajshree Fastners\n• Gangotri Reagents\n• Kaveri Scientific",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Rajshree Fastners/2026-09-01/iso_9001_cert.pdf",
+            "vendor": "Rajshree Fastners"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf",
+            "vendor": "Gangotri Reagents"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Kaveri Scientific/2026-09-05/kaveri_scientific_quote.pdf",
+            "vendor": "Kaveri Scientific"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.001
+    },
+    {
+      "id": "iso-14001-list",
+      "family": "sql",
+      "query": "which vendors are ISO 14001 certified?",
+      "expected": {
+        "id": "iso-14001-list",
+        "family": "sql",
+        "query": "which vendors are ISO 14001 certified?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Gangotri"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors holding ISO 14001 certification:\n\n• Rajshree Fastners\n• Gangotri Reagents",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Rajshree Fastners/2026-09-01/quote_hex_bolt.pdf",
+            "vendor": "Rajshree Fastners"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf",
+            "vendor": "Gangotri Reagents"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.001
+    },
+    {
+      "id": "iso-17025-list",
+      "family": "sql",
+      "query": "which vendors are ISO 17025 certified?",
+      "expected": {
+        "id": "iso-17025-list",
+        "family": "sql",
+        "query": "which vendors are ISO 17025 certified?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Kaveri"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors holding ISO/IEC 17025 certification:\n\n• Kaveri Scientific",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Kaveri Scientific/2026-09-05/kaveri_scientific_quote.pdf",
+            "vendor": "Kaveri Scientific"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.001
+    },
+    {
+      "id": "iso-non-iso",
+      "family": "sql",
+      "query": "list non-ISO vendors",
+      "expected": {
+        "id": "iso-non-iso",
+        "family": "sql",
+        "query": "list non-ISO vendors",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Aditya",
+          "Deccan"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors NOT ISO 9001 certified:\n\n• Aditya Lab Solutions\n• Deccan Chemicals",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Aditya Lab Solutions/2026-09-03/aditya_lab_solutions_quote.pdf",
+            "vendor": "Aditya Lab Solutions"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Deccan Chemicals/2026-09-05/deccan_chemicals_quote.pdf",
+            "vendor": "Deccan Chemicals"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.156
+    },
+    {
+      "id": "iso-single-yes",
+      "family": "sql",
+      "query": "is Nirmala ISO 9001 certified?",
+      "expected": {
+        "id": "iso-single-yes",
+        "family": "sql",
+        "query": "is Nirmala ISO 9001 certified?",
+        "expected_route": "structured_sql",
+        "must_contain_all": [
+          "Nirmala"
+        ],
+        "must_contain_any": [
+          "holds",
+          "Yes",
+          "yes"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Nirmala Chemicals holds ISO 9001.",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.004
+    },
+    {
+      "id": "iso-single-no",
+      "family": "sql",
+      "query": "is Aditya ISO 9001 certified?",
+      "expected": {
+        "id": "iso-single-no",
+        "family": "sql",
+        "query": "is Aditya ISO 9001 certified?",
+        "expected_route": "structured_sql",
+        "must_contain_all": [
+          "Aditya"
+        ],
+        "must_contain_any": [
+          "NOT",
+          "not"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Aditya Lab Solutions is NOT ISO 9001 certified.",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Aditya Lab Solutions/2026-09-03/aditya_lab_solutions_quote.pdf",
+            "vendor": "Aditya Lab Solutions"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.003
+    },
+    {
+      "id": "iso-single-multi",
+      "family": "sql",
+      "query": "is Gangotri ISO certified?",
+      "expected": {
+        "id": "iso-single-multi",
+        "family": "sql",
+        "query": "is Gangotri ISO certified?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Gangotri"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Yes — Gangotri Reagents holds ISO 9001, ISO 14001.",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf",
+            "vendor": "Gangotri Reagents"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.002
+    },
+    {
+      "id": "iso-single-kaveri",
+      "family": "sql",
+      "query": "is Kaveri ISO 9001 certified?",
+      "expected": {
+        "id": "iso-single-kaveri",
+        "family": "sql",
+        "query": "is Kaveri ISO 9001 certified?",
+        "expected_route": "structured_sql",
+        "must_contain_all": [
+          "Kaveri"
+        ],
+        "must_contain_any": [
+          "holds",
+          "Yes",
+          "yes"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Kaveri Scientific holds ISO 9001.",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Kaveri Scientific/2026-09-05/kaveri_scientific_quote.pdf",
+            "vendor": "Kaveri Scientific"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.002
+    },
+    {
+      "id": "iso-single-missing",
+      "family": "sql",
+      "query": "is Sunrise Industries ISO 9001 certified?",
+      "expected": {
+        "id": "iso-single-missing",
+        "family": "sql",
+        "query": "is Sunrise Industries ISO 9001 certified?",
+        "expected_route": "structured_sql_empty"
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "No records for a vendor called \"sunrise industries\" in our corpus.",
+        "sources": [],
+        "route_method": "structured_sql_empty"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.003
+    },
+    {
+      "id": "gst-yes-list",
+      "family": "sql",
+      "query": "which vendors have GSTIN?",
+      "expected": {
+        "id": "gst-yes-list",
+        "family": "sql",
+        "query": "which vendors have GSTIN?",
+        "expected_route": "structured_sql"
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors with a registered GSTIN:\n\n• Aditya Lab Solutions — GSTIN 27AAJFA9925C1ZH\n• Associated Scientific Company — GSTIN 36AADFA6455A1ZV\n• Nirmala Chemicals — GSTIN 27AAACN2145Q1ZP\n• Rajshree Fastners — GSTIN 27AAAAA0000A1Z5\n• Deccan Chemicals — GSTIN 36AAAFD3320H1ZQ\n• Gangotri Reagents — GSTIN 07AAECG7712R1Z2\n• Kaveri Scientific — GSTIN 29AAECK4471M1Z4\n• Polar Biosciences Private Limited — GSTIN 36AALCP5204H1ZF",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Aditya Lab Solutions/2026-09-03/aditya_lab_solutions_quote.pdf",
+            "vendor": "Aditya Lab Solutions"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Associated Scientific Company/2026-09-01/SQ-2949 Density.pdf",
+            "vendor": "Associated Scientific Company"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Rajshree Fastners/2026-09-01/quote_hex_bolt.pdf",
+            "vendor": "Rajshree Fastners"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Deccan Chemicals/2026-09-05/deccan_chemicals_quote.pdf",
+            "vendor": "Deccan Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf",
+            "vendor": "Gangotri Reagents"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Kaveri Scientific/2026-09-05/kaveri_scientific_quote.pdf",
+            "vendor": "Kaveri Scientific"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Polar Biosciences Private Limited/2026-09-05/Q-353-2026-27-REV.pdf",
+            "vendor": "Polar Biosciences Private Limited"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.001
+    },
+    {
+      "id": "gst-no-list",
+      "family": "sql",
+      "query": "which suppliers do not have GST?",
+      "expected": {
+        "id": "gst-no-list",
+        "family": "sql",
+        "query": "which suppliers do not have GST?",
+        "expected_route": "structured_sql"
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors without a registered GSTIN:\n\n• Rajshree Fastners",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Rajshree Fastners/2026-09-01/iso_9001_cert.pdf",
+            "vendor": "Rajshree Fastners"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.001
+    },
+    {
+      "id": "field-gstin-nirmala",
+      "family": "sql",
+      "query": "what is Nirmala's GSTIN?",
+      "expected": {
+        "id": "field-gstin-nirmala",
+        "family": "sql",
+        "query": "what is Nirmala's GSTIN?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Nirmala",
+          "GSTIN",
+          "gstin"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Nirmala Chemicals — gstin: 27AAACN2145Q1ZP",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.002
+    },
+    {
+      "id": "field-gstin-kaveri",
+      "family": "sql",
+      "query": "what is Kaveri's GSTIN?",
+      "expected": {
+        "id": "field-gstin-kaveri",
+        "family": "sql",
+        "query": "what is Kaveri's GSTIN?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Kaveri",
+          "GSTIN",
+          "gstin"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Kaveri Scientific — gstin: 29AAECK4471M1Z4",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Kaveri Scientific/2026-09-05/kaveri_scientific_quote.pdf",
+            "vendor": "Kaveri Scientific"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.002
+    },
+    {
+      "id": "field-pan-aditya",
+      "family": "sql",
+      "query": "what is Aditya's PAN?",
+      "expected": {
+        "id": "field-pan-aditya",
+        "family": "sql",
+        "query": "what is Aditya's PAN?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Aditya",
+          "PAN",
+          "pan"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Aditya Lab Solutions — pan: AAJFA9925C",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Aditya Lab Solutions/2026-09-03/aditya_lab_solutions_quote.pdf",
+            "vendor": "Aditya Lab Solutions"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.002
+    },
+    {
+      "id": "field-address-of-gangotri",
+      "family": "sql",
+      "query": "give me the address of Gangotri",
+      "expected": {
+        "id": "field-address-of-gangotri",
+        "family": "sql",
+        "query": "give me the address of Gangotri",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Gangotri",
+          "address"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Gangotri Reagents — address: B-108, Okhla Industrial Area, Phase I, New Delhi – 110020",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf",
+            "vendor": "Gangotri Reagents"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.004
+    },
+    {
+      "id": "field-address-poss",
+      "family": "sql",
+      "query": "what is Aditya's address?",
+      "expected": {
+        "id": "field-address-poss",
+        "family": "sql",
+        "query": "what is Aditya's address?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Aditya"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Aditya Lab Solutions — address: Shop 14, Sinhagad Road, Wadgaon Budruk, Pune – 411041, Maharashtra",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Aditya Lab Solutions/2026-09-03/aditya_lab_solutions_quote.pdf",
+            "vendor": "Aditya Lab Solutions"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.002
+    },
+    {
+      "id": "field-quote-num",
+      "family": "sql",
+      "query": "show me Nirmala's quote number",
+      "expected": {
+        "id": "field-quote-num",
+        "family": "sql",
+        "query": "show me Nirmala's quote number",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Nirmala"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Nirmala Chemicals — quote number: NCP/QT/2026-27/0431",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.003
+    },
+    {
+      "id": "price-cheapest-ethanol",
+      "family": "sql",
+      "query": "cheapest ethanol",
+      "expected": {
+        "id": "price-cheapest-ethanol",
+        "family": "sql",
+        "query": "cheapest ethanol",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Aditya",
+          "1450",
+          "1,450"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Cheapest offers for ethanol:\n\n• Aditya Lab Solutions: Ethanol Absolute, LR grade, 2.5 L bottle — INR 1,450/bottle\n• Deccan Chemicals: Ethanol Absolute, AR grade, 2.5 L bottle — INR 1,680/bottle\n• Nirmala Chemicals: Ethanol Absolute, AR grade, 2.5 L bottle — INR 1,850/bottle\n• Kaveri Scientific: Ethanol Absolute, AR grade, 2.5 L bottle — INR 2,100/bottle\n• Deccan Chemicals: Methanol, HPLC grade, 2.5 L bottle — INR 2,480/bottle",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Aditya Lab Solutions/2026-09-03/aditya_lab_solutions_quote.pdf",
+            "vendor": "Aditya Lab Solutions"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Deccan Chemicals/2026-09-05/deccan_chemicals_quote.pdf",
+            "vendor": "Deccan Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Kaveri Scientific/2026-09-05/kaveri_scientific_quote.pdf",
+            "vendor": "Kaveri Scientific"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Deccan Chemicals/2026-09-05/deccan_chemicals_quote.pdf",
+            "vendor": "Deccan Chemicals"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.033
+    },
+    {
+      "id": "price-cheapest-methanol",
+      "family": "sql",
+      "query": "cheapest methanol",
+      "expected": {
+        "id": "price-cheapest-methanol",
+        "family": "sql",
+        "query": "cheapest methanol",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Deccan",
+          "2480",
+          "2,480"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Cheapest offers for methanol:\n\n• Deccan Chemicals: Methanol, HPLC grade, 2.5 L bottle — INR 2,480/bottle\n• Nirmala Chemicals: Methanol, HPLC grade, 2.5 L bottle — INR 2,650/bottle\n• Gangotri Reagents: Methanol, HPLC grade, 2.5 L bottle — INR 2,780/bottle\n• Kaveri Scientific: Methanol, HPLC grade, 2.5 L bottle — INR 2,950/bottle",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Deccan Chemicals/2026-09-05/deccan_chemicals_quote.pdf",
+            "vendor": "Deccan Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf",
+            "vendor": "Gangotri Reagents"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Kaveri Scientific/2026-09-05/kaveri_scientific_quote.pdf",
+            "vendor": "Kaveri Scientific"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.036
+    },
+    {
+      "id": "price-cheapest-naoh",
+      "family": "sql",
+      "query": "cheapest sodium hydroxide",
+      "expected": {
+        "id": "price-cheapest-naoh",
+        "family": "sql",
+        "query": "cheapest sodium hydroxide",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Aditya"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Cheapest offers for sodium hydroxide:\n\n• Aditya Lab Solutions: Sodium Hydroxide pellets, LR grade, 500 g bottle — INR 620/bottle\n• Deccan Chemicals: Sodium Hydroxide pellets, AR grade, 500 g bottle — INR 740/bottle\n• Nirmala Chemicals: Sodium Hydroxide pellets, AR grade, 500 g bottle — INR 850/bottle\n• Kaveri Scientific: Sodium Hydroxide pellets, AR grade, 500 g bottle — INR 1,050/bottle",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Aditya Lab Solutions/2026-09-03/aditya_lab_solutions_quote.pdf",
+            "vendor": "Aditya Lab Solutions"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Deccan Chemicals/2026-09-05/deccan_chemicals_quote.pdf",
+            "vendor": "Deccan Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Kaveri Scientific/2026-09-05/kaveri_scientific_quote.pdf",
+            "vendor": "Kaveri Scientific"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.031
+    },
+    {
+      "id": "price-expensive-methanol",
+      "family": "sql",
+      "query": "most expensive methanol",
+      "expected": {
+        "id": "price-expensive-methanol",
+        "family": "sql",
+        "query": "most expensive methanol",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Kaveri",
+          "2950",
+          "2,950"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Most expensive offers for methanol:\n\n• Kaveri Scientific: Methanol, HPLC grade, 2.5 L bottle — INR 2,950/bottle\n• Gangotri Reagents: Methanol, HPLC grade, 2.5 L bottle — INR 2,780/bottle\n• Nirmala Chemicals: Methanol, HPLC grade, 2.5 L bottle — INR 2,650/bottle\n• Deccan Chemicals: Methanol, HPLC grade, 2.5 L bottle — INR 2,480/bottle",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Kaveri Scientific/2026-09-05/kaveri_scientific_quote.pdf",
+            "vendor": "Kaveri Scientific"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf",
+            "vendor": "Gangotri Reagents"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Deccan Chemicals/2026-09-05/deccan_chemicals_quote.pdf",
+            "vendor": "Deccan Chemicals"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.031
+    },
+    {
+      "id": "price-who-supplies-meth",
+      "family": "sql",
+      "query": "who can supply methanol?",
+      "expected": {
+        "id": "price-who-supplies-meth",
+        "family": "sql",
+        "query": "who can supply methanol?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Nirmala",
+          "Deccan",
+          "Gangotri",
+          "Kaveri"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors who quoted for methanol:\n\n• Deccan Chemicals: Methanol, HPLC grade, 2.5 L bottle — INR 2,480/bottle\n• Nirmala Chemicals: Methanol, HPLC grade, 2.5 L bottle — INR 2,650/bottle\n• Gangotri Reagents: Methanol, HPLC grade, 2.5 L bottle — INR 2,780/bottle\n• Kaveri Scientific: Methanol, HPLC grade, 2.5 L bottle — INR 2,950/bottle",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Deccan Chemicals/2026-09-05/deccan_chemicals_quote.pdf",
+            "vendor": "Deccan Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf",
+            "vendor": "Gangotri Reagents"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Kaveri Scientific/2026-09-05/kaveri_scientific_quote.pdf",
+            "vendor": "Kaveri Scientific"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.033
+    },
+    {
+      "id": "price-who-sells-hcl",
+      "family": "sql",
+      "query": "which vendors sell HCl?",
+      "expected": {
+        "id": "price-who-sells-hcl",
+        "family": "sql",
+        "query": "which vendors sell HCl?",
+        "expected_route": "structured_sql"
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors who quoted for hcl:\n\n(No matching entries in the structured facts DB.)",
+        "sources": [],
+        "route_method": "structured_sql_empty"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.151
+    },
+    {
+      "id": "price-of-from-nirmala",
+      "family": "sql",
+      "query": "price of methanol from Nirmala",
+      "expected": {
+        "id": "price-of-from-nirmala",
+        "family": "sql",
+        "query": "price of methanol from Nirmala",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Nirmala",
+          "2650",
+          "2,650"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Nirmala Chemicals quoted Methanol, HPLC grade, 2.5 L bottle at INR 2,650/bottle.",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.004
+    },
+    {
+      "id": "price-of-from-kaveri",
+      "family": "sql",
+      "query": "price of ethanol from Kaveri",
+      "expected": {
+        "id": "price-of-from-kaveri",
+        "family": "sql",
+        "query": "price of ethanol from Kaveri",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Kaveri",
+          "2100",
+          "2,100"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Kaveri Scientific quoted Ethanol Absolute, AR grade, 2.5 L bottle at INR 2,100/bottle.",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Kaveri Scientific/2026-09-05/kaveri_scientific_quote.pdf",
+            "vendor": "Kaveri Scientific"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.003
+    },
+    {
+      "id": "items-what-quoted-aditya",
+      "family": "sql",
+      "query": "what did Aditya quote?",
+      "expected": {
+        "id": "items-what-quoted-aditya",
+        "family": "sql",
+        "query": "what did Aditya quote?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Aditya"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Aditya Lab Solutions — 4 line items:\n\n• Ethanol Absolute, LR grade, 2.5 L bottle — INR 1,450/bottle\n• Acetone, LR grade, 2.5 L bottle — INR 1,120/bottle\n• Sodium Hydroxide pellets, LR grade, 500 g bottle — INR 620/bottle\n• Hydrochloric Acid 37% w/w, LR grade, 2.5 L bottle — INR 540/bottle",
+        "sources": [
+          {
+            "vendor": "Aditya Lab Solutions"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.002
+    },
+    {
+      "id": "items-quote-of-nirmala",
+      "family": "sql",
+      "query": "what is the quote of Nirmala?",
+      "expected": {
+        "id": "items-quote-of-nirmala",
+        "family": "sql",
+        "query": "what is the quote of Nirmala?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Nirmala"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Nirmala Chemicals — 5 line items:\n\n• Methanol, HPLC grade, 2.5 L bottle — INR 2,650/bottle\n• Ethanol Absolute, AR grade, 2.5 L bottle — INR 1,850/bottle\n• Acetone, AR grade, 2.5 L bottle — INR 1,450/bottle\n• Sodium Hydroxide pellets, AR grade, 500 g bottle — INR 850/bottle\n• Hydrochloric Acid 37% w/w, AR grade, 2.5 L bottle — INR 720/bottle",
+        "sources": [
+          {
+            "vendor": "Nirmala Chemicals"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.004
+    },
+    {
+      "id": "items-quote-poss-kaveri",
+      "family": "sql",
+      "query": "give me Kaveri's quote",
+      "expected": {
+        "id": "items-quote-poss-kaveri",
+        "family": "sql",
+        "query": "give me Kaveri's quote",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Kaveri"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Kaveri Scientific — 4 line items:\n\n• Methanol, HPLC grade, 2.5 L bottle — INR 2,950/bottle\n• Ethanol Absolute, AR grade, 2.5 L bottle — INR 2,100/bottle\n• Sodium Hydroxide pellets, AR grade, 500 g bottle — INR 1,050/bottle\n• Sulphuric Acid 98%, AR grade, 2.5 L bottle — INR 890/bottle",
+        "sources": [
+          {
+            "vendor": "Kaveri Scientific"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.002
+    },
+    {
+      "id": "delivery-fastest",
+      "family": "sql",
+      "query": "fastest delivery",
+      "expected": {
+        "id": "delivery-fastest",
+        "family": "sql",
+        "query": "fastest delivery",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Deccan"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors ranked by delivery lead time (fastest first):\n\n• Associated Scientific Company: 2-3 days\n• Deccan Chemicals: 3-5 days\n• Kaveri Scientific: 5-7 days\n• Nirmala Chemicals: 7-10 days\n• Gangotri Reagents: 8-10 days",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Associated Scientific Company/2026-09-01/SQ-2949 Density.pdf",
+            "vendor": "Associated Scientific Company"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Deccan Chemicals/2026-09-05/deccan_chemicals_quote.pdf",
+            "vendor": "Deccan Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Kaveri Scientific/2026-09-05/kaveri_scientific_quote.pdf",
+            "vendor": "Kaveri Scientific"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf",
+            "vendor": "Gangotri Reagents"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.001
+    },
+    {
+      "id": "delivery-slowest",
+      "family": "sql",
+      "query": "slowest delivery",
+      "expected": {
+        "id": "delivery-slowest",
+        "family": "sql",
+        "query": "slowest delivery",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Aditya"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors ranked by delivery lead time (slowest first):\n\n• Polar Biosciences Private Limited: 35-42 days\n• Rajshree Fastners: 18 days\n• Aditya Lab Solutions: 10-14 days\n• Gangotri Reagents: 8-10 days\n• Nirmala Chemicals: 7-10 days",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Polar Biosciences Private Limited/2026-09-05/Q-353-2026-27-REV.pdf",
+            "vendor": "Polar Biosciences Private Limited"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Rajshree Fastners/2026-09-01/quote_hex_bolt.pdf",
+            "vendor": "Rajshree Fastners"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Aditya Lab Solutions/2026-09-03/aditya_lab_solutions_quote.pdf",
+            "vendor": "Aditya Lab Solutions"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf",
+            "vendor": "Gangotri Reagents"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.001
+    },
+    {
+      "id": "delivery-under-7",
+      "family": "sql",
+      "query": "vendors delivering under 7 days",
+      "expected": {
+        "id": "delivery-under-7",
+        "family": "sql",
+        "query": "vendors delivering under 7 days",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Deccan"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors with delivery under 7 days:\n\n• Associated Scientific Company: 2-3 days\n• Deccan Chemicals: 3-5 days\n• Kaveri Scientific: 5-7 days",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Associated Scientific Company/2026-09-01/SQ-2949 Density.pdf",
+            "vendor": "Associated Scientific Company"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Deccan Chemicals/2026-09-05/deccan_chemicals_quote.pdf",
+            "vendor": "Deccan Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Kaveri Scientific/2026-09-05/kaveri_scientific_quote.pdf",
+            "vendor": "Kaveri Scientific"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.036
+    },
+    {
+      "id": "payment-longest",
+      "family": "sql",
+      "query": "longest credit period",
+      "expected": {
+        "id": "payment-longest",
+        "family": "sql",
+        "query": "longest credit period",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Kaveri"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors ranked by credit period (longest first):\n\n• Kaveri Scientific: 45 days net (45 days net from date of invoice against approved PO)\n• Polar Biosciences Private Limited: 30 days net (30 Days)\n• Gangotri Reagents: 30 days net (30 days net from date of invoice; LC at sight for orders above INR 5,00,000)\n• Rajshree Fastners: 30 days net (Net 30 days)\n• Nirmala Chemicals: 30 days net (30 days net from date of invoice; 2% cash discount for payment within 10 days)",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Kaveri Scientific/2026-09-05/kaveri_scientific_quote.pdf",
+            "vendor": "Kaveri Scientific"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Polar Biosciences Private Limited/2026-09-05/Q-353-2026-27-REV.pdf",
+            "vendor": "Polar Biosciences Private Limited"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf",
+            "vendor": "Gangotri Reagents"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Rajshree Fastners/2026-09-01/quote_hex_bolt.pdf",
+            "vendor": "Rajshree Fastners"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.002
+    },
+    {
+      "id": "payment-shortest",
+      "family": "sql",
+      "query": "shortest credit",
+      "expected": {
+        "id": "payment-shortest",
+        "family": "sql",
+        "query": "shortest credit",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Aditya"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors ranked by credit period (shortest first):\n\n• Aditya Lab Solutions: 15 days net (15 days net from date of invoice; 100% advance for first-time customers)\n• Deccan Chemicals: 21 days net (21 days net from date of invoice)\n• Associated Scientific Company: 30 days net (30 Days)\n• Nirmala Chemicals: 30 days net (30 days net from date of invoice; 2% cash discount for payment within 10 days)\n• Rajshree Fastners: 30 days net (Net 30 days)",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Aditya Lab Solutions/2026-09-03/aditya_lab_solutions_quote.pdf",
+            "vendor": "Aditya Lab Solutions"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Deccan Chemicals/2026-09-05/deccan_chemicals_quote.pdf",
+            "vendor": "Deccan Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Associated Scientific Company/2026-09-01/SQ-2949 Density.pdf",
+            "vendor": "Associated Scientific Company"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Rajshree Fastners/2026-09-01/quote_hex_bolt.pdf",
+            "vendor": "Rajshree Fastners"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.001
+    },
+    {
+      "id": "time-last-30-days",
+      "family": "sql",
+      "query": "quotes in the last 30 days",
+      "expected": {
+        "id": "time-last-30-days",
+        "family": "sql",
+        "query": "quotes in the last 30 days",
+        "expected_route": "structured_sql"
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors with quotes issued in the last 30 days (most recent first):\n\n• Associated Scientific Company: 2026-09-01 (quote #SQ-2949)\n• Rajshree Fastners: 2026-08-31 (quote #RF/Q/2026/00841)\n• Gangotri Reagents: 2026-08-24 (quote #GRPL/QT/26-27/1044)\n• Kaveri Scientific: 2026-08-23 (quote #KSS/QT/26-27/198)\n• Deccan Chemicals: 2026-08-22 (quote #DCR-QT-2026-0331)\n• Nirmala Chemicals: 2026-08-22 (quote #NCP/QT/2026-27/0431)\n• Aditya Lab Solutions: 2026-08-21 (quote #ALS/2026/Q-0872)",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Associated Scientific Company/2026-09-01/SQ-2949 Density.pdf",
+            "vendor": "Associated Scientific Company"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Rajshree Fastners/2026-09-01/quote_hex_bolt.pdf",
+            "vendor": "Rajshree Fastners"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf",
+            "vendor": "Gangotri Reagents"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Kaveri Scientific/2026-09-05/kaveri_scientific_quote.pdf",
+            "vendor": "Kaveri Scientific"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Deccan Chemicals/2026-09-05/deccan_chemicals_quote.pdf",
+            "vendor": "Deccan Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Aditya Lab Solutions/2026-09-03/aditya_lab_solutions_quote.pdf",
+            "vendor": "Aditya Lab Solutions"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 7.827
+    },
+    {
+      "id": "time-last-week",
+      "family": "sql",
+      "query": "quotes received in the last week",
+      "expected": {
+        "id": "time-last-week",
+        "family": "sql",
+        "query": "quotes received in the last week",
+        "expected_route": "structured_sql"
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors with quotes issued in the last 7 days (most recent first):\n\n• Associated Scientific Company: 2026-09-01 (quote #SQ-2949)\n• Rajshree Fastners: 2026-08-31 (quote #RF/Q/2026/00841)",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Associated Scientific Company/2026-09-01/SQ-2949 Density.pdf",
+            "vendor": "Associated Scientific Company"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Rajshree Fastners/2026-09-01/quote_hex_bolt.pdf",
+            "vendor": "Rajshree Fastners"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.044
+    },
+    {
+      "id": "loc-mumbai",
+      "family": "sql",
+      "query": "vendors from Mumbai",
+      "expected": {
+        "id": "loc-mumbai",
+        "family": "sql",
+        "query": "vendors from Mumbai",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Nirmala"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors based in mumbai:\n\n• Nirmala Chemicals",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.033
+    },
+    {
+      "id": "loc-pune",
+      "family": "sql",
+      "query": "vendors based in Pune",
+      "expected": {
+        "id": "loc-pune",
+        "family": "sql",
+        "query": "vendors based in Pune",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Aditya"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors based in pune:\n\n• Aditya Lab Solutions\n• Rajshree Fastners",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Aditya Lab Solutions/2026-09-03/aditya_lab_solutions_quote.pdf",
+            "vendor": "Aditya Lab Solutions"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Rajshree Fastners/2026-09-01/quote_hex_bolt.pdf",
+            "vendor": "Rajshree Fastners"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.169
+    },
+    {
+      "id": "loc-hyderabad",
+      "family": "sql",
+      "query": "vendors located in Hyderabad",
+      "expected": {
+        "id": "loc-hyderabad",
+        "family": "sql",
+        "query": "vendors located in Hyderabad",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Deccan"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors based in hyderabad:\n\n• Associated Scientific Company\n• Deccan Chemicals\n• Polar Biosciences Private Limited",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Associated Scientific Company/2026-09-01/SQ-2949 Density.pdf",
+            "vendor": "Associated Scientific Company"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Deccan Chemicals/2026-09-05/deccan_chemicals_quote.pdf",
+            "vendor": "Deccan Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Polar Biosciences Private Limited/2026-09-05/Q-353-2026-27-REV.pdf",
+            "vendor": "Polar Biosciences Private Limited"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.032
+    },
+    {
+      "id": "loc-bengaluru",
+      "family": "sql",
+      "query": "vendors from Bengaluru",
+      "expected": {
+        "id": "loc-bengaluru",
+        "family": "sql",
+        "query": "vendors from Bengaluru",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Kaveri"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors based in bengaluru:\n\n• Kaveri Scientific",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Kaveri Scientific/2026-09-05/kaveri_scientific_quote.pdf",
+            "vendor": "Kaveri Scientific"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.029
+    },
+    {
+      "id": "resolve-partial-rajshree",
+      "family": "vendor",
+      "query": "is Rajshree ISO 9001 certified?",
+      "expected": {
+        "id": "resolve-partial-rajshree",
+        "family": "vendor",
+        "query": "is Rajshree ISO 9001 certified?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Rajshree"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Rajshree Fastners holds ISO 9001.",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Rajshree Fastners/2026-09-01/iso_9001_cert.pdf",
+            "vendor": "Rajshree Fastners"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.002
+    },
+    {
+      "id": "resolve-partial-kaveri",
+      "family": "vendor",
+      "query": "what is kaveri's GSTIN?",
+      "expected": {
+        "id": "resolve-partial-kaveri",
+        "family": "vendor",
+        "query": "what is kaveri's GSTIN?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Kaveri"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Kaveri Scientific — gstin: 29AAECK4471M1Z4",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Kaveri Scientific/2026-09-05/kaveri_scientific_quote.pdf",
+            "vendor": "Kaveri Scientific"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.002
+    },
+    {
+      "id": "resolve-partial-polar",
+      "family": "vendor",
+      "query": "what is Polar's address?",
+      "expected": {
+        "id": "resolve-partial-polar",
+        "family": "vendor",
+        "query": "what is Polar's address?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Polar"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Polar Biosciences Private Limited — address: Polar Biosciences Private Limited\n#12-13-416/3 Street No.1\nTarnaka Hyderabad-500017",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Polar Biosciences Private Limited/2026-09-05/Q-353-2026-27-REV.pdf",
+            "vendor": "Polar Biosciences Private Limited"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.002
+    },
+    {
+      "id": "resolve-lowercase",
+      "family": "vendor",
+      "query": "what is nirmala's GSTIN?",
+      "expected": {
+        "id": "resolve-lowercase",
+        "family": "vendor",
+        "query": "what is nirmala's GSTIN?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Nirmala"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Nirmala Chemicals — gstin: 27AAACN2145Q1ZP",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.002
+    },
+    {
+      "id": "resolve-short-name",
+      "family": "vendor",
+      "query": "what is deccan's address?",
+      "expected": {
+        "id": "resolve-short-name",
+        "family": "vendor",
+        "query": "what is deccan's address?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Deccan"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Deccan Chemicals — address: Survey 118/2, Balanagar Industrial Area, Hyderabad – 500037, Telangana",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Deccan Chemicals/2026-09-05/deccan_chemicals_quote.pdf",
+            "vendor": "Deccan Chemicals"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.002
+    },
+    {
+      "id": "resolve-typo",
+      "family": "vendor",
+      "query": "what is nirmla's GSTIN?",
+      "expected": {
+        "id": "resolve-typo",
+        "family": "vendor",
+        "query": "what is nirmla's GSTIN?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Nirmala"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Nirmala Chemicals — gstin: 27AAACN2145Q1ZP",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.002
+    },
+    {
+      "id": "resolve-missing",
+      "family": "vendor",
+      "query": "what is Sunrise Industries' GSTIN?",
+      "expected": {
+        "id": "resolve-missing",
+        "family": "vendor",
+        "query": "what is Sunrise Industries' GSTIN?",
+        "expected_route": "structured_sql_empty"
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "No records for a vendor called \"sunrise industries\".",
+        "sources": [],
+        "route_method": "structured_sql_empty"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.003
+    },
+    {
+      "id": "edge-quoted-query",
+      "family": "edge",
+      "query": "\"show me Aditya's quote number\"",
+      "expected": {
+        "id": "edge-quoted-query",
+        "family": "edge",
+        "query": "\"show me Aditya's quote number\"",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "Aditya"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Aditya Lab Solutions — quote number: ALS/2026/Q-0872",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Aditya Lab Solutions/2026-09-03/aditya_lab_solutions_quote.pdf",
+            "vendor": "Aditya Lab Solutions"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.003
+    },
+    {
+      "id": "edge-supplier-synonym",
+      "family": "edge",
+      "query": "which suppliers do not have GST?",
+      "expected": {
+        "id": "edge-supplier-synonym",
+        "family": "edge",
+        "query": "which suppliers do not have GST?",
+        "expected_route": "structured_sql"
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors without a registered GSTIN:\n\n• Rajshree Fastners",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Rajshree Fastners/2026-09-01/iso_9001_cert.pdf",
+            "vendor": "Rajshree Fastners"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.0
+    },
+    {
+      "id": "edge-company-synonym",
+      "family": "edge",
+      "query": "how many companies do we have?",
+      "expected": {
+        "id": "edge-company-synonym",
+        "family": "edge",
+        "query": "how many companies do we have?",
+        "expected_route": "structured_sql",
+        "must_contain_any": [
+          "8"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "The corpus has 8 vendors.",
+        "sources": [],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.037
+    },
+    {
+      "id": "edge-firm-synonym",
+      "family": "edge",
+      "query": "which firms are ISO 9001 certified?",
+      "expected": {
+        "id": "edge-firm-synonym",
+        "family": "edge",
+        "query": "which firms are ISO 9001 certified?",
+        "expected_route": "structured_sql"
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Vendors holding ISO 9001 certification:\n\n• Nirmala Chemicals\n• Rajshree Fastners\n• Gangotri Reagents\n• Kaveri Scientific",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Rajshree Fastners/2026-09-01/iso_9001_cert.pdf",
+            "vendor": "Rajshree Fastners"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf",
+            "vendor": "Gangotri Reagents"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Kaveri Scientific/2026-09-05/kaveri_scientific_quote.pdf",
+            "vendor": "Kaveri Scientific"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.004
+    },
+    {
+      "id": "edge-most-expensive-dot",
+      "family": "edge",
+      "query": "most expensive methanol.",
+      "expected": {
+        "id": "edge-most-expensive-dot",
+        "family": "edge",
+        "query": "most expensive methanol.",
+        "expected_route": "structured_sql"
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Most expensive offers for methanol:\n\n• Kaveri Scientific: Methanol, HPLC grade, 2.5 L bottle — INR 2,950/bottle\n• Gangotri Reagents: Methanol, HPLC grade, 2.5 L bottle — INR 2,780/bottle\n• Nirmala Chemicals: Methanol, HPLC grade, 2.5 L bottle — INR 2,650/bottle\n• Deccan Chemicals: Methanol, HPLC grade, 2.5 L bottle — INR 2,480/bottle",
+        "sources": [
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Kaveri Scientific/2026-09-05/kaveri_scientific_quote.pdf",
+            "vendor": "Kaveri Scientific"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf",
+            "vendor": "Gangotri Reagents"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          },
+          {
+            "source": "/Users/sekhar/Projects/civsa/documents/Deccan Chemicals/2026-09-05/deccan_chemicals_quote.pdf",
+            "vendor": "Deccan Chemicals"
+          }
+        ],
+        "route_method": "structured_sql"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.03
+    },
+    {
+      "id": "gate-sports",
+      "family": "gate",
+      "query": "who won the cricket world cup?",
+      "expected": {
+        "id": "gate-sports",
+        "family": "gate",
+        "query": "who won the cricket world cup?",
+        "expected_allowed": false
+      },
+      "actual": {
+        "allowed": false,
+        "route_method": "gate_off_topic",
+        "answer": "I only answer questions about your vendors, quotes, contracts, POs and delivery history.",
+        "sources": []
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.514
+    },
+    {
+      "id": "gate-weather",
+      "family": "gate",
+      "query": "what is the weather today in Delhi?",
+      "expected": {
+        "id": "gate-weather",
+        "family": "gate",
+        "query": "what is the weather today in Delhi?",
+        "expected_allowed": false
+      },
+      "actual": {
+        "allowed": false,
+        "route_method": "gate_off_topic",
+        "answer": "I only answer questions about your vendors, quotes, contracts, POs and delivery history.",
+        "sources": []
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.593
+    },
+    {
+      "id": "gate-recipe",
+      "family": "gate",
+      "query": "recipe for making masala chai",
+      "expected": {
+        "id": "gate-recipe",
+        "family": "gate",
+        "query": "recipe for making masala chai",
+        "expected_allowed": false
+      },
+      "actual": {
+        "allowed": false,
+        "route_method": "gate_off_topic",
+        "answer": "I only answer questions about your vendors, quotes, contracts, POs and delivery history.",
+        "sources": []
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 0.451
+    },
+    {
+      "id": "rag-warranty",
+      "family": "rag",
+      "query": "what warranty does Nirmala offer?",
+      "expected": {
+        "id": "rag-warranty",
+        "family": "rag",
+        "query": "what warranty does Nirmala offer?",
+        "expected_route": "vendor_scoped",
+        "must_contain_any": [
+          "Nirmala"
+        ]
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Nirmala offers a quality warranty for all items shipped with manufacturer CoA; batch retention samples are kept for 24 months. [source: nirmala_chemicals_quote.pdf]",
+        "sources": [
+          {
+            "chunk_type": "prose",
+            "date": "2026-09-03",
+            "labels": "quote",
+            "para": 4,
+            "prose_index": 4,
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          },
+          {
+            "chunk_type": "prose",
+            "date": "2026-09-03",
+            "labels": "quote",
+            "para": 3,
+            "prose_index": 3,
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          },
+          {
+            "chunk_type": "prose",
+            "date": "2026-09-03",
+            "labels": "quote",
+            "para": 2,
+            "prose_index": 2,
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          },
+          {
+            "chunk_type": "prose",
+            "date": "2026-09-03",
+            "labels": "quote",
+            "para": 0,
+            "prose_index": 0,
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          },
+          {
+            "chunk_type": "prose",
+            "date": "2026-09-03",
+            "labels": "quote",
+            "para": 1,
+            "prose_index": 1,
+            "source": "/Users/sekhar/Projects/civsa/documents/Nirmala Chemicals/2026-09-03/nirmala_chemicals_quote.pdf",
+            "vendor": "Nirmala Chemicals"
+          }
+        ],
+        "route_method": "vendor_scoped"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 102.754
+    },
+    {
+      "id": "rag-packaging",
+      "family": "rag",
+      "query": "how are Gangotri's reagents packaged?",
+      "expected": {
+        "id": "rag-packaging",
+        "family": "rag",
+        "query": "how are Gangotri's reagents packaged?",
+        "expected_route": "vendor_scoped"
+      },
+      "actual": {
+        "allowed": true,
+        "answer": "Gangotri's reagents are packaged in amber glass bottles with tamper-evident caps and shipped in corrugated cartons with orientation markers [source: /Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf, vendor: Gangotri Reagents, para 4].",
+        "sources": [
+          {
+            "chunk_type": "prose",
+            "date": "2026-09-05",
+            "labels": "quote",
+            "para": 0,
+            "prose_index": 0,
+            "source": "/Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf",
+            "vendor": "Gangotri Reagents"
+          },
+          {
+            "chunk_type": "prose",
+            "date": "2026-09-05",
+            "labels": "quote",
+            "para": 3,
+            "prose_index": 3,
+            "source": "/Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf",
+            "vendor": "Gangotri Reagents"
+          },
+          {
+            "chunk_type": "prose",
+            "date": "2026-09-05",
+            "labels": "quote",
+            "para": 1,
+            "prose_index": 1,
+            "source": "/Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf",
+            "vendor": "Gangotri Reagents"
+          },
+          {
+            "chunk_type": "prose",
+            "date": "2026-09-05",
+            "labels": "quote",
+            "para": 2,
+            "prose_index": 2,
+            "source": "/Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf",
+            "vendor": "Gangotri Reagents"
+          },
+          {
+            "chunk_type": "prose",
+            "date": "2026-09-05",
+            "labels": "quote",
+            "para": 4,
+            "prose_index": 4,
+            "source": "/Users/sekhar/Projects/civsa/documents/Gangotri Reagents/2026-09-05/gangotri_reagents_quote.pdf",
+            "vendor": "Gangotri Reagents"
+          }
+        ],
+        "route_method": "vendor_scoped"
+      },
+      "passed": true,
+      "reasons": [],
+      "elapsed_s": 101.85
+    }
+  ]
+}

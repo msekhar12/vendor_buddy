@@ -174,3 +174,37 @@ Vendors tab UI update — attribution bar per vendor
 One row in eval_queries.json — "score aditya" → structured_sql
 
 Roughly one code drop, one day of your time.
+
+--PROJECT DOCUMENTATION GENERATION
+Continuation marker
+
+For any follow-up in this document-generation series (after you've reviewed Doc 1 and want me to make changes, or when you say "ready for Doc 2"), use the tag:
+
+[CIVSA-DOC-GEN]
+
+Just include it anywhere in your message. Example:
+
+"[CIVSA-DOC-GEN] make the Objectives section shorter"
+"[CIVSA-DOC-GEN] ready for Doc 2"
+"[CIVSA-DOC-GEN] Doc 1 has an error on section 5.3"
+
+That tag anchors us in this specific work stream so I know to keep the same style guide, section structure, project name (CIVSA), and delivery format we're establishing now, without you having to re-explain.
+
+I'll also add this in the docx footer of Doc 1 for easy reference.
+
+-----
+
+When you've reviewed it, reply with [CIVSA-DOC-GEN] doc1 ok to start Doc 2, or [CIVSA-DOC-GEN] doc1: <changes> with any edits.
+
+---------
+
+============================================================
+Overall:  60/60 passed (100%)
+Wall:     227.6s (3.79s/query)
+============================================================
+By family:
+  edge         5/ 5  (100%)
+  gate         3/ 3  (100%)
+  rag          2/ 2  (100%)
+  sql         43/43  (100%)
+  vendor       7/ 7  (100%)
