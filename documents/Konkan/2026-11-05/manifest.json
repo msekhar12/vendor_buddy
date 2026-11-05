@@ -1,0 +1,49 @@
+{
+  "vendor": "Konkan",
+  "date": "2026-11-05",
+  "docs": [
+    {
+      "filename": "konkan_pan.png",
+      "labels": [
+        "pan_card"
+      ],
+      "label_source": "user",
+      "sha256": "4d8dbd27828bceb34891e6e5774e5a121a2fbb1e77e55e4da30c17ace6c0f86c",
+      "size_bytes": 47126,
+      "uploaded_by": "anonymous",
+      "uploaded_at": "2026-11-05T13:36:21+00:00",
+      "doc_type": "pan_card",
+      "review_status": "rejected",
+      "review_reasons": [
+        "name_mismatch"
+      ],
+      "doc_reasons": [
+        "name_mismatch"
+      ],
+      "acknowledged_reasons": [],
+      "extraction": {
+        "method": "ocr",
+        "ocr": {
+          "mean_conf": 94.75,
+          "n_words": 28,
+          "junk_ratio": 0.07,
+          "sharpness": 1804.5,
+          "width": 1400,
+          "height": 880,
+          "timed_out": false,
+          "rotated_deg": 0
+        },
+        "text_file": "konkan_pan.png.ocr.txt"
+      },
+      "identity": {
+        "id_type": "pan",
+        "id_value": "AALCK2290F",
+        "holder_names": [
+          "KONKAN MARINE EXPORTS PRIVATE LIMITED"
+        ]
+      },
+      "reviewed_by": "ui",
+      "reviewed_at": "2026-11-05T13:36:29+00:00"
+    }
+  ]
+}
