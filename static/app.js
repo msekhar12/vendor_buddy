@@ -798,7 +798,80 @@ if (dqForm) {
     } catch {
       box.innerHTML = `<div class="empty">Probe failed.</div>`;
     }
+
+    loadFinalChunks(q, document.getElementById("debug-mode").value);
   });
+}
+
+// Final ranked chunks, exactly as qa.answer() would pass them to the LLM.
+// Separate request because it runs the LLM query expansion (slower).
+async function loadFinalChunks(q, mode) {
+  const box = document.getElementById("debug-final-results");
+  if (!box) return;
+  box.innerHTML = `<div class="debug-final"><div class="loading">Running the answer pipeline's retrieval (includes LLM query expansion)...</div></div>`;
+
+  const form = new FormData();
+  form.append("q", q);
+  if (mode) form.append("mode", mode);
+
+  let body;
+  try {
+    const r = await fetch(`${API}/api/debug/final`, { method: "POST", body: form });
+    if (!r.ok) throw new Error(await r.text());
+    body = await r.json();
+  } catch {
+    box.innerHTML = `<div class="debug-final"><div class="empty">Final-chunk probe failed.</div></div>`;
+    return;
+  }
+
+  const isRrf = body.mode === "rrf";
+  const fmt = (v, d = 3) => (v === null || v === undefined ? "–" : Number(v).toFixed(d));
+
+  const notes = [];
+  if (body.structured_route) {
+    notes.push(`The SQL router answers this query (<code>${escapeHTML(body.structured_route)}</code>), so these chunks are <b>not</b> used. They show what RAG would have used.`);
+  }
+  if (body.stage === "unrelated") {
+    notes.push("Query expansion judged this unrelated to procurement, so no retrieval was run.");
+  }
+
+  const hits = body.chunks.map((h) => {
+    const contrib = isRrf
+      ? `RRF = ${fmt(h.rrf_score, 5)} · Chroma #${h.vec_rank ?? "–"} (dist ${fmt(h.distance)}) · TF-IDF #${h.tfidf_rank ?? "–"} (score ${fmt(h.tfidf_score)})`
+      : `dist = ${fmt(h.distance)}`;
+    const cut = h.rank === body.ctx_cap + 1
+      ? `<div class="debug-cut">Below this line: retrieved but not sent to the LLM (prompt holds the top ${body.ctx_cap})</div>`
+      : "";
+    return `${cut}
+      <div class="debug-hit ${h.in_prompt ? "" : "out-of-prompt"}">
+        <div class="debug-hit-header">
+          <span class="rank">${h.rank}.</span>
+          <span class="score">${isRrf ? "RRF " + fmt(h.rrf_score, 5) : "dist " + fmt(h.distance)}</span>
+          <span class="vendor-tag">${escapeHTML(String(h.vendor || "?"))}</span>
+          <span class="doc-labels">${escapeHTML(String(h.labels || ""))}</span>
+        </div>
+        <div class="contrib">${contrib}</div>
+        <div class="fmeta">${escapeHTML(String(h.source || ""))} · para ${h.para ?? "?"}${h.chunk_type ? " · " + escapeHTML(h.chunk_type) : ""}</div>
+        <div class="preview">${escapeHTML(h.text_preview)}</div>
+      </div>`;
+  }).join("");
+
+  const scope = body.vendor_hint
+    ? `vendor-scoped to <b>${escapeHTML(body.vendor_hint)}</b>`
+    : body.is_multi ? "multi-vendor, whole corpus" : "whole corpus";
+
+  box.innerHTML = `
+    <div class="debug-final">
+      <h4>Final chunks · ${isRrf ? "RRF (Chroma + TF-IDF)" : "Legacy (Chroma, TF-IDF pre-filter)"} · what the LLM receives</h4>
+      <div class="debug-final-meta">
+        Route <code>${escapeHTML(String(body.route || body.stage))}</code> · ${scope} ·
+        ${body.chunks.length} retrieved, top ${Math.min(body.ctx_cap, body.chunks.length)} sent to the LLM
+        ${body.mode !== body.default_mode ? ` · <b>overriding server default (${escapeHTML(body.default_mode)})</b>` : ""}<br>
+        Expanded query: <code>${escapeHTML(String(body.expanded ?? "–"))}</code>
+      </div>
+      ${notes.map((n) => `<div class="debug-note">${n}</div>`).join("")}
+      ${hits || `<div class="empty">No chunks retrieved.</div>`}
+    </div>`;
 }
 
 const dgForm = document.getElementById("debug-gate-form");

@@ -10,7 +10,7 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="stylesheet" href="/static/style.css?v=3" />
   </head>
   <body>
     <header class="topbar">
@@ -253,9 +253,15 @@
               placeholder="Label filter (comma-separated, optional)"
               style="max-width: 280px"
             />
+            <select id="debug-mode" title="Ranking used for the final chunks">
+              <option value="">Final ranking: server default</option>
+              <option value="rrf">Final ranking: RRF</option>
+              <option value="legacy">Final ranking: Legacy</option>
+            </select>
             <button type="submit">Probe</button>
           </form>
           <div id="debug-query-results"></div>
+          <div id="debug-final-results"></div>
         </div>
 
         <div class="debug-section">
@@ -305,6 +311,6 @@
     </main>
 
     <footer>CIVSA · Phase 1 · IIIT Dharwad</footer>
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=3"></script>
   </body>
 </html>

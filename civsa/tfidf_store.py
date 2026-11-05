@@ -74,6 +74,28 @@ def query(text: str, k: int = 50) -> list[int]:
     return [int(i) for i in top if scores[i] > 0]
 
 
+def query_ranked(text: str, k: int = 50,
+                 vendor: str | None = None) -> list[tuple[str, dict, float]]:
+    """
+    Top-k chunks by TF-IDF cosine as (text, meta, score), best first.
+    Loads the pickle once (unlike query() + get_chunk() per hit). With
+    `vendor`, only that vendor's chunks are ranked. Zero-score chunks
+    are dropped.
+    """
+    data = _load()
+    if not data["chunks"] or data.get("vectorizer") is None:
+        return []
+    q = data["vectorizer"].transform([text])
+    scores = (data["matrix"] @ q.T).toarray().ravel()
+    if vendor is not None:
+        for i, m in enumerate(data["metas"]):
+            if m.get("vendor") != vendor:
+                scores[i] = 0.0
+    top = scores.argsort()[::-1][:k]
+    return [(data["chunks"][i], data["metas"][i], float(scores[i]))
+            for i in top if scores[i] > 0]
+
+
 def get_chunk(idx: int) -> tuple[str, dict]:
     data = _load()
     return data["chunks"][idx], data["metas"][idx]

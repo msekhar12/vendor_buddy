@@ -466,6 +466,56 @@ def debug_query(
             "tfidf": tfidf_hits, "chroma": chroma_hits}
 
 
+@app.post("/api/debug/final")
+def debug_final(
+    q: Annotated[str, Form()],
+    mode: Annotated[str, Form()] = "",
+):
+    """
+    Final ranked chunks exactly as qa.answer() would hand them to the LLM
+    (same vendor detection, LLM query expansion and RRF/legacy ranking),
+    without generating an answer. Also reports whether the SQL router would
+    have answered the query instead. Label filter does not apply here.
+    """
+    from . import config
+    from .qa import retrieve
+
+    if mode not in ("", "rrf", "legacy"):
+        raise HTTPException(400, "mode must be 'rrf' or 'legacy'")
+    r = retrieve(q, mode=mode or None, stop_at_structured=False)
+    s = r["structured"]
+    chunks = []
+    for i, (doc, m) in enumerate(zip(r["docs"], r["metas"]), start=1):
+        chunks.append({
+            "rank":         i,
+            "in_prompt":    i <= r["ctx_cap"],
+            "vendor":       m.get("vendor"),
+            "source":       m.get("source"),
+            "para":         m.get("para"),
+            "labels":       m.get("labels"),
+            "chunk_type":   m.get("chunk_type"),
+            "rrf_score":    m.get("rrf_score"),
+            "vec_rank":     m.get("vec_rank"),
+            "distance":     m.get("distance"),
+            "tfidf_rank":   m.get("tfidf_rank"),
+            "tfidf_score":  m.get("tfidf_score"),
+            "text_preview": doc[:220],
+        })
+    return {
+        "query":        q,
+        "mode":         r["mode"],
+        "default_mode": config.RETRIEVAL_MODE,
+        "stage":        r["stage"],
+        "route":        r["route"],
+        "structured_route": s["route_method"] if s else None,
+        "expanded":     r["expanded"],
+        "vendor_hint":  r["vendor_hint"],
+        "is_multi":     r["is_multi"],
+        "ctx_cap":      r["ctx_cap"],
+        "chunks":       chunks,
+    }
+
+
 @app.post("/api/debug/gate")
 def debug_gate(
     q: Annotated[str, Form()],
@@ -582,9 +632,22 @@ def api_rankings_rank(req: RankRequest):
 # ================================================================
 # Static web UI
 # ================================================================
-app.mount("/static", StaticFiles(directory="static"), name="static")
+class _RevalidatingStatic(StaticFiles):
+    """
+    Static files with Cache-Control: no-cache, so the browser revalidates
+    (cheap 304 via ETag) on every load instead of serving a stale app.js
+    from heuristic cache after the UI has been edited.
+    """
+    async def get_response(self, path, scope):
+        resp = await super().get_response(path, scope)
+        resp.headers["Cache-Control"] = "no-cache"
+        return resp
+
+
+app.mount("/static", _RevalidatingStatic(directory="static"), name="static")
 
 
 @app.get("/")
 def home():
-    return FileResponse("static/index.html")
+    return FileResponse("static/index.html",
+                        headers={"Cache-Control": "no-cache"})

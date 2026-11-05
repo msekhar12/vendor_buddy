@@ -22,7 +22,14 @@ open http://localhost:8501
 brew install ollama
 
 # Start Ollama as a background service (runs on http://localhost:11434)
+# starts in the background:
 brew services start ollama
+
+#stops the ollama server
+brew services start ollama
+
+#starts in the foreground
+ollama serve
 
 # Pull a small model for classification + a mid-size one for RAG answers
 ollama pull llama3.2:3b       # ~2 GB — fast, good for gate + label suggest

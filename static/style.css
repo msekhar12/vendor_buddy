@@ -624,6 +624,78 @@ footer {
   line-height: 1.45;
 }
 
+/* -------- Final chunks (what the LLM receives) -------- */
+.debug-section form select {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+}
+/* Keep the TF-IDF / Chroma columns short so the final chunks below are
+   on screen without a long scroll; each column scrolls on its own. */
+#debug-query-results .debug-cols > div {
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.debug-final {
+  margin-top: 20px;
+  border-top: 2px solid var(--rule);
+  padding-top: 14px;
+}
+.debug-final h4 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  margin-bottom: 8px;
+}
+.debug-final-meta {
+  font-size: 12px;
+  color: var(--ink-2);
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+.debug-final-meta code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.debug-note {
+  background: var(--warn-soft);
+  color: var(--warn);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+.debug-hit.out-of-prompt {
+  opacity: 0.55;
+}
+.debug-cut {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  border-top: 1px dashed var(--rule);
+  padding-top: 6px;
+  margin: 12px 0 8px;
+}
+.debug-hit .contrib {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.debug-hit .vendor-tag {
+  font-size: 11px;
+  color: var(--verified);
+  background: var(--verified-soft);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
 /* -------- Danger buttons -------- */
 button.danger {
   background: transparent;

@@ -15,8 +15,9 @@ Query shapes better served by Phase 2 add-on A (structured facts DB):
 import re
 from typing import Any, Optional, cast
 
-from . import tfidf_store, vector_store
+from . import config, tfidf_store, vector_store
 from .config import DOC_STORE
+from .fusion import rrf
 from .llm_client import chat as llm_chat
 from .vendor_index import get_vendor_index
 
@@ -264,6 +265,75 @@ def _boost_table_rows(results, query: str, boost: float = 0.15):
         results["ids"]   = [[ids[k]   for k in order]]
 
     return results
+
+
+# ---- Hybrid retrieval: Reciprocal Rank Fusion ----------------------
+
+def _rrf_retrieve(expanded: str, query: str, vendor: str | None,
+                  k_vec: int, k_tfidf: int, top_n: int) -> tuple[list, list]:
+    """
+    Rank chunks by RRF over two retrievers:
+      1. Chroma semantic search (table-row boost applied first, so the
+         boost changes this list's ranks)
+      2. TF-IDF lexical search (stemmed unigrams + bigrams)
+    Both search the whole corpus, or only `vendor`'s chunks if given.
+
+    A chunk is identified by (source, text), because both stores keep the
+    same chunk text for each source file and the IDs they use differ.
+    """
+    if vendor:
+        vec = _vector_query_vendor(expanded, vendor, k=k_vec)
+    else:
+        vec = vector_store.query(expanded, k=k_vec)
+    vec = _boost_table_rows(vec, query)
+    v_docs  = (vec.get("documents") or [[]])[0]
+    v_metas = (vec.get("metadatas") or [[]])[0]
+    vec_list = list(zip(v_docs, v_metas))
+
+    tf_list = []
+    tfidf_store_hits = tfidf_store.query_ranked(
+        expanded, k=k_tfidf, vendor=vendor)
+    for text, meta, _score in tfidf_store_hits:
+        m = dict(meta)
+        # Match Chroma's metadata shape (labels stored as "a|b")
+        if isinstance(m.get("labels"), list):
+            m["labels"] = "|".join(m["labels"])
+        tf_list.append((text, m))
+
+    fused = rrf(
+        [vec_list, tf_list],
+        key=lambda dm: (dm[1].get("source"), dm[0]),
+        k=config.RRF_K,
+        weights=[config.RRF_W_VECTOR, config.RRF_W_TFIDF],
+    )[:top_n]
+
+    vec_keys = {(m.get("source"), d) for d, m in vec_list}
+    tf_keys  = {(m.get("source"), d) for d, m in tf_list}
+    both = sum(1 for (d, m), _ in fused
+               if (m.get("source"), d) in vec_keys & tf_keys)
+    print(f"[qa] rrf: vector={len(vec_list)} tfidf={len(tf_list)} "
+          f"fused_top={len(fused)} (in both lists: {both})", flush=True)
+
+    # Per-list rank + raw score, so the debug view can explain the fusion
+    v_dists = (vec.get("distances") or [[]])[0] or [None] * len(v_docs)
+    vec_info = {}
+    for i, ((d, m), dist) in enumerate(zip(vec_list, v_dists), start=1):
+        vec_info.setdefault((m.get("source"), d), (i, dist))
+    tf_info = {}
+    for i, ((d, m), (_t, _m, sc)) in enumerate(
+            zip(tf_list, tfidf_store_hits), start=1):
+        tf_info.setdefault((m.get("source"), d), (i, sc))
+
+    docs, metas = [], []
+    for (d, m), s in fused:
+        key = (m.get("source"), d)
+        v_rank, v_dist = vec_info.get(key, (None, None))
+        t_rank, t_score = tf_info.get(key, (None, None))
+        docs.append(d)
+        metas.append({**m, "rrf_score": round(s, 5),
+                      "vec_rank": v_rank, "distance": v_dist,
+                      "tfidf_rank": t_rank, "tfidf_score": t_score})
+    return docs, metas
 
 
 # ============================================================
@@ -860,12 +930,45 @@ def _format_recent(rows: list[dict], days: int) -> dict:
     }
 # ---------- Main entry ----------
 
-def answer(query: str, intent: str | None = None) -> dict:
+def _unpack(hits) -> tuple[list, list]:
+    """Chroma result -> (docs, metas) with each meta carrying its distance."""
+    docs  = (hits.get("documents") or [[]])[0]
+    metas = (hits.get("metadatas") or [[]])[0]
+    dists = (hits.get("distances") or [[]])[0] or [None] * len(docs)
+    return list(docs), [{**m, "distance": d} for m, d in zip(metas, dists)]
+
+
+def ctx_cap(is_multi: bool) -> int:
+    """How many of the final chunks _generate() puts in the LLM prompt."""
+    return 20 if is_multi else 10
+
+
+def retrieve(query: str, mode: str | None = None,
+             stop_at_structured: bool = True) -> dict:
+    """
+    Everything answer() does before generation.
+
+    Returns a dict with:
+      stage       "structured" | "unrelated" | "empty" | "rag"
+      structured  the SQL router's result, or None
+      mode        "rrf" | "legacy"
+      route       "vendor_scoped" | "rag" (for stage == "rag")
+      docs, metas the final ranked chunks (prompt gets the first ctx_cap)
+      expanded, is_multi, is_simple, vendor_hint, ctx_cap
+
+    With stop_at_structured=False, retrieval runs even when the SQL router
+    matched (the debug probe uses this to show what RAG would have used).
+    """
+    mode = mode or config.RETRIEVAL_MODE
     is_multi   = _is_multi_vendor_query(query)
     is_simple  = _is_simple_query(query)
     # Only scope to one vendor when the query names it AND is NOT a
     # multi-vendor question (comparison, list, filter, aggregation).
     vendor_hint = None if is_multi else _detect_vendor(query)
+    out = {"mode": mode, "is_multi": is_multi, "is_simple": is_simple,
+           "vendor_hint": vendor_hint, "ctx_cap": ctx_cap(is_multi),
+           "structured": None, "expanded": None, "route": None,
+           "docs": [], "metas": []}
 
     print(f"[qa] shape: multi_vendor={is_multi} simple={is_simple} "
           f"vendor_hint={vendor_hint}", flush=True)
@@ -875,26 +978,47 @@ def answer(query: str, intent: str | None = None) -> dict:
     if structured_result:
         print(f"[qa] structured route: "
               f"{structured_result['route_method']}", flush=True)
-        return structured_result
+        out["structured"] = structured_result
+        if stop_at_structured:
+            return {**out, "stage": "structured"}
 
     # Only if SQL didn't fire, do the LLM expansion for RAG
     expanded = _expand_query(query)
+    out["expanded"] = expanded
     if expanded.lower() == "unrelated to procurement":
-        return {"answer": "Not procurement-related.", "sources": [],
-                "route_method": "unrelated"}
+        return {**out, "stage": "unrelated"}
     print(f"[qa] original: {query!r}", flush=True)
     print(f"[qa] expanded: {expanded!r}", flush=True)
 
+    def done(docs, metas, route):
+        stage = "rag" if docs else "empty"
+        return {**out, "stage": stage, "route": route,
+                "docs": docs, "metas": metas}
+
+    # ---- RRF hybrid retrieval ----
+    if mode == "rrf":
+        if vendor_hint:
+            docs, metas = _rrf_retrieve(expanded, query, vendor_hint,
+                                        k_vec=15, k_tfidf=15, top_n=15)
+            if docs:
+                print(f"[qa] vendor-scoped (rrf): {len(docs)} chunks from "
+                      f"{vendor_hint}", flush=True)
+                return done(docs, metas, "vendor_scoped")
+            print(f"[qa] vendor {vendor_hint} has no chunks - falling back",
+                  flush=True)
+        k = 40 if is_multi else 20
+        docs, metas = _rrf_retrieve(expanded, query, None,
+                                    k_vec=k, k_tfidf=k, top_n=k)
+        return done(docs, metas, "rag")
+
+    # ---- Legacy path ----
     # ---- Path A: vendor-scoped (single-subject question) ----
     if vendor_hint:
-        hits = _vector_query_vendor(expanded, vendor_hint, k=15)
-        docs  = hits["documents"][0]  if hits["documents"]  else [] # type: ignore
-        metas = hits["metadatas"][0] if hits["metadatas"] else [] # type: ignore
+        docs, metas = _unpack(_vector_query_vendor(expanded, vendor_hint, k=15))
         if docs:
             print(f"[qa] vendor-scoped: {len(docs)} chunks from "
                   f"{vendor_hint}", flush=True)
-            return _generate(query, is_simple, is_multi,
-                             docs, metas, route="vendor_scoped")
+            return done(docs, metas, "vendor_scoped")
         print(f"[qa] vendor {vendor_hint} has no chunks - falling back",
               flush=True)
 
@@ -906,10 +1030,8 @@ def answer(query: str, intent: str | None = None) -> dict:
 
     if is_multi:
         # Broader k, no source filter — need enough vendors represented
-        hits = vector_store.query(expanded, k=40)
-        hits = _boost_table_rows(hits, query)
-        docs  = hits["documents"][0]  if hits["documents"]  else []
-        metas = hits["metadatas"][0] if hits["metadatas"] else []
+        docs, metas = _unpack(_boost_table_rows(
+            vector_store.query(expanded, k=40), query))
         print(f"[qa] multi-vendor broad retrieval: {len(docs)} chunks",
               flush=True)
     else:
@@ -928,17 +1050,13 @@ def answer(query: str, intent: str | None = None) -> dict:
                   f"dropping source filter", flush=True)
             candidate_sources = None
 
-        hits = vector_store.query(expanded, k=20,
-                                  source_filter=candidate_sources)
-        hits = _boost_table_rows(hits, query)
-        docs  = hits["documents"][0]  if hits["documents"]  else []
-        metas = hits["metadatas"][0] if hits["metadatas"] else []
+        docs, metas = _unpack(_boost_table_rows(
+            vector_store.query(expanded, k=20,
+                               source_filter=candidate_sources), query))
 
         if candidate_sources and len(docs) < 10:
             print("[qa] broadening to whole corpus", flush=True)
-            hits2 = vector_store.query(expanded, k=20)
-            d2 = hits2["documents"][0]  if hits2["documents"]  else []
-            m2 = hits2["metadatas"][0] if hits2["metadatas"] else []
+            d2, m2 = _unpack(vector_store.query(expanded, k=20))
             seen = {(m["source"], m.get("para")) for m in metas}
             for d, m in zip(d2, m2):
                 key = (m["source"], m.get("para"))
@@ -946,11 +1064,21 @@ def answer(query: str, intent: str | None = None) -> dict:
                     docs.append(d); metas.append(m); seen.add(key)
             print(f"[qa] union total: {len(docs)}", flush=True)
 
-    if not docs:
+    return done(docs, metas, "rag")
+
+
+def answer(query: str, intent: str | None = None) -> dict:
+    r = retrieve(query)
+    if r["stage"] == "structured":
+        return r["structured"]
+    if r["stage"] == "unrelated":
+        return {"answer": "Not procurement-related.", "sources": [],
+                "route_method": "unrelated"}
+    if r["stage"] == "empty":
         return {"answer": "No relevant documents found.", "sources": [],
                 "route_method": "rag_empty"}
-
-    return _generate(query, is_simple, is_multi, docs, metas, route="rag")
+    return _generate(query, r["is_simple"], r["is_multi"],
+                     r["docs"], r["metas"], route=r["route"])
 
 
 # ---------- Generation ----------
@@ -967,11 +1095,11 @@ def _generate(query: str, is_simple: bool, is_multi: bool,
     print(f"[qa] vendor coverage: {by_vendor}", flush=True)
 
     # Multi-vendor queries need more context to see across vendors
-    ctx_cap = 20 if is_multi else 10
+    cap = ctx_cap(is_multi)
     ctx = "\n\n".join(
         f"[{i+1}] {d}\n(source: {m['source']}, vendor: {m['vendor']}, "
         f"para {m.get('para', '?')}, labels: {m.get('labels', 'unlabelled')})"
-        for i, (d, m) in enumerate(zip(docs[:ctx_cap], metas[:ctx_cap]))
+        for i, (d, m) in enumerate(zip(docs[:cap], metas[:cap]))
     )
 
     # Model + token budget

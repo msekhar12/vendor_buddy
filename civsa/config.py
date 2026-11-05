@@ -43,6 +43,14 @@ GROQ_MODEL        = "openai/gpt-oss-20b"       # RAG answers
 GROQ_MODEL_FAST   = "llama-3.1-8b-instant"     # classification (non-reasoning)
 
 
+# ---- RAG retrieval ranking ----
+# "rrf"    = Reciprocal Rank Fusion of Chroma (semantic) + TF-IDF (lexical)
+# "legacy" = Chroma ranking only, TF-IDF used as a source pre-filter
+RETRIEVAL_MODE = "rrf"  # reciprocal ranking fusion (Chroma + TF-IDF) is default
+RRF_K          = 60     # standard constant from Cormack et al. 2009
+RRF_W_VECTOR   = 1.0    # weight of the Chroma ranked list
+RRF_W_TFIDF    = 1.0    # weight of the TF-IDF ranked list
+
 # ---- Upload / query limits ----
 MAX_UPLOAD_MB    = 25
 MAX_QUERY_TOKENS = 2000
