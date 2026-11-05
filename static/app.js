@@ -384,6 +384,7 @@ async function uploadFile(file, ui) {
         hash: data.hash,
         linkedTo: data.linked_to,
         duplicate: true,
+        rejected: !!data.rejected,
       });
     } else {
       appendUploadLog({
@@ -442,7 +443,9 @@ function appendUploadLog(entry) {
   const verb = document.createElement("span");
   if (entry.duplicate) {
     verb.className = "log-verb-dup";
-    verb.textContent = "already in corpus — nothing new indexed";
+    verb.textContent = entry.rejected
+      ? "same file was rejected in review earlier — nothing new indexed"
+      : "already in corpus — nothing new indexed";
   } else if (entry.flagged) {
     verb.className = "log-verb-flag";
     verb.textContent = "flagged for manual review — not used until approved";
@@ -648,9 +651,13 @@ async function renderVendorBody(vendor, body) {
       `${API}/api/vendor/${encodeURIComponent(vendor)}/manifest`,
     );
     const { folders } = await r.json();
-    const docs = folders.flatMap((f) =>
+    const allDocs = folders.flatMap((f) =>
       (f.docs || []).map((d) => ({ ...d, date: f.date })),
     );
+    // Rejected review documents are kept on disk (audit trail, duplicate
+    // detection) but are not part of the vendor's corpus, so hide them.
+    const docs = allDocs.filter((d) => d.review_status !== "rejected");
+    const nRejected = allDocs.length - docs.length;
 
     body.innerHTML = "";
     if (!docs.length) {
@@ -685,12 +692,19 @@ async function renderVendorBody(vendor, body) {
       }
     }
 
+    if (nRejected) {
+      const note = document.createElement("div");
+      note.className = "fmeta rejected-note";
+      note.textContent = `${nRejected} rejected document${nRejected === 1 ? "" : "s"} not shown.`;
+      body.appendChild(note);
+    }
+
     const actions = document.createElement("div");
     actions.className = "vendor-actions";
     actions.innerHTML = `
       <button class="chip rename-vendor-btn">Rename vendor</button>
       <button class="danger delete-vendor-btn">
-        Delete this vendor (all ${docs.length} document${docs.length === 1 ? "" : "s"})
+        Delete this vendor (all ${allDocs.length} document${allDocs.length === 1 ? "" : "s"})
       </button>`;
     actions
       .querySelector(".rename-vendor-btn")

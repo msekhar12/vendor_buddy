@@ -95,8 +95,12 @@ async def upload(
     file_hash = sha256_of(content)
     dup = find_duplicate(STORAGE, vendor, file_hash)
     if dup:
+        prev = load_manifest(dup.parent)
+        rejected = any(d["filename"] == dup.name
+                       and d.get("review_status") == "rejected"
+                       for d in prev["docs"])
         return {"status": "duplicate", "linked_to": str(dup),
-                "hash": file_hash}
+                "hash": file_hash, "rejected": rejected}
 
     date = datetime.now().astimezone().strftime("%Y-%m-%d")
     path = STORAGE.put(vendor, date, filename, content)
