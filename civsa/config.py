@@ -4,12 +4,17 @@ Central config for CIVSA.
 Every path and constant used by more than one module lives here so that
 changing a location (e.g., moving the documents folder) is a one-line edit.
 """
+import os
 from pathlib import Path
 
 # ---- Paths ----
 ROOT       = Path(__file__).resolve().parent.parent   # project root
-DOC_STORE  = ROOT / "documents"     # where uploaded vendor files live
-INDEX_DIR  = ROOT / "indexes"       # TF-IDF matrix + ChromaDB
+# CIVSA_DATA_ROOT relocates documents/ + indexes/ (tests and e2e runs use a
+# throwaway folder so the real corpus is never touched). Must be set before
+# civsa is imported.
+DATA_ROOT  = Path(os.getenv("CIVSA_DATA_ROOT", ROOT))
+DOC_STORE  = DATA_ROOT / "documents"   # where uploaded vendor files live
+INDEX_DIR  = DATA_ROOT / "indexes"     # TF-IDF matrix + ChromaDB + SQLite
 DATA_DIR   = ROOT / "data"          # gate training data, demo assets
 MODEL_DIR  = ROOT / "models"        # cached sentence-BERT
 
@@ -50,6 +55,19 @@ RETRIEVAL_MODE = "rrf"  # reciprocal ranking fusion (Chroma + TF-IDF) is default
 RRF_K          = 60     # standard constant from Cormack et al. 2009
 RRF_W_VECTOR   = 1.0    # weight of the Chroma ranked list
 RRF_W_TFIDF    = 1.0    # weight of the TF-IDF ranked list
+
+# ---- OCR (image uploads + scanned PDF pages) ----
+OCR_PSM        = 4      # Tesseract page segmentation: single column, keeps table rows on one line
+OCR_TIMEOUT_S  = 20     # heavy noise can make Tesseract run for minutes
+# Quality thresholds (calibrated on TEST-DATA/images/quality; readable
+# images score 90-95 conf / sharpness > 600, degraded ones < 30 / < 25)
+OCR_MIN_CONF        = 60.0   # mean word confidence below this -> low_confidence
+OCR_MIN_WORDS       = 20     # quotes/other docs with fewer words -> too_little_text
+OCR_MIN_SHARPNESS   = 50.0   # Laplacian variance below this -> blurry
+OCR_MIN_LONG_SIDE   = 800    # longest side in px below this -> low_resolution
+OCR_MAX_JUNK_RATIO  = 0.30   # share of symbol-only words above this -> garbled
+# Procurement relevance: keyword hits needed to accept without asking the LLM
+RELEVANCE_MIN_HITS = 4   # >= this -> relevant; 1..this-1 -> ask the fast LLM; 0 -> not relevant
 
 # ---- Upload / query limits ----
 MAX_UPLOAD_MB    = 25

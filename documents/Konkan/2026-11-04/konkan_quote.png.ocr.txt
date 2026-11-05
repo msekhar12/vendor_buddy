@@ -1,0 +1,33 @@
+SPECIMEN - NOT AREAL DOCUMENT
+
+Konkan Chemicals Pvt Ltd
+
+MIDC Lote Parshuram, Ratnagiri - 415722, Maharashtra
+Email: sales@konkanchem.example
+
+QUOTATION
+
+Quotation No.: KCP/26/1120
+Date: 18 October 2026
+Validity: 30 days from date of issue
+
+To: Indian Institute of Information Technology Dharwad
+Procurement Cell, Kurubarahalli, Dharwad - 580009, Karnataka
+
+SKU Description Unit Qty Unit Price (INR) Line Total (INR)
+KC-01 Acetone, AR grade, 2.5L bottle 15 1,350 20,250
+Subtotal 20,250
+GST @ 18% 3,645
+Grand Total 23,895
+
+Commercial & Delivery Terms
+Payment Terms: 30 days net from date of invoice
+Delivery Lead Time: 7 to 10 working days from receipt of PO
+Freight: FOR destination, Dharwad
+Packaging: HDPE bottles in corrugated cartons
+Quality Warranty: CoA with every batch
+
+Certifications: Not ISO certified
+
+For Konkan Chemicals Pvt Ltd
+Sameer Joshi, Authorised Signatory

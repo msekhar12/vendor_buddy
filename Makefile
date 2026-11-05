@@ -43,3 +43,11 @@ eval-http:
 
 eval-verbose:
 	python -m scripts.eval --verbose	
+images:
+	PYTHONPATH=. python scripts/create_demo_images.py
+
+eval-images:
+	PYTHONPATH=. python scripts/eval_images.py
+
+recheck-identity:
+	PYTHONPATH=. python scripts/recheck_identity.py

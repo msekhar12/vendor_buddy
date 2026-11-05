@@ -56,6 +56,10 @@ corpus/
 docs_storage/
 
 # ChromaDB persistent index.
+# indexes/ holds Chroma + TF-IDF + facts.sqlite; all of it is rebuilt from
+# documents/ by `make reindex`, and the Chroma .bin files change on every
+# upload, so it is never committed.
+indexes/
 chroma_db/
 .chroma/
 chroma_data/

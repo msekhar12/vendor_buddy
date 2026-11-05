@@ -107,6 +107,23 @@ CREATE TABLE IF NOT EXISTS commercial_terms (
 CREATE INDEX IF NOT EXISTS idx_ct_canonical    ON commercial_terms(canonical_vendor);
 CREATE INDEX IF NOT EXISTS idx_ct_delivery_max ON commercial_terms(delivery_days_max);
 CREATE INDEX IF NOT EXISTS idx_ct_payment_net  ON commercial_terms(payment_days_net);
+
+-- PAN cards / GST certificates uploaded as separate documents. Values are
+-- read rule-based (civsa/identity.py), not by the LLM. review_status mirrors
+-- the document's manifest entry: auto_ok | approved | needs_review | rejected.
+CREATE TABLE IF NOT EXISTS vendor_identity_docs (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    vendor            TEXT    NOT NULL,
+    canonical_vendor  TEXT    NOT NULL,
+    source_doc        TEXT    NOT NULL UNIQUE,
+    doc_type          TEXT    NOT NULL,      -- pan_card | gst_certificate
+    id_type           TEXT    NOT NULL,      -- pan | gstin
+    id_value          TEXT,
+    holder_name       TEXT,
+    review_status     TEXT    NOT NULL,
+    updated_at        TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_vid_canonical ON vendor_identity_docs(canonical_vendor);
 """
 
 
@@ -363,6 +380,7 @@ def remove_by_source(source: str) -> None:
         conn.execute("DELETE FROM vendor_facts     WHERE source_doc = ?", (source,))
         conn.execute("DELETE FROM commercial_terms WHERE source_doc = ?", (source,))
         conn.execute("DELETE FROM quote_items      WHERE source_doc = ?", (source,))
+        conn.execute("DELETE FROM vendor_identity_docs WHERE source_doc = ?", (source,))
 
 
 def remove_by_vendor(canonical_vendor: str) -> None:
@@ -371,6 +389,7 @@ def remove_by_vendor(canonical_vendor: str) -> None:
         conn.execute("DELETE FROM vendor_facts     WHERE canonical_vendor = ?", (canonical_vendor,))
         conn.execute("DELETE FROM commercial_terms WHERE canonical_vendor = ?", (canonical_vendor,))
         conn.execute("DELETE FROM quote_items      WHERE canonical_vendor = ?", (canonical_vendor,))
+        conn.execute("DELETE FROM vendor_identity_docs WHERE canonical_vendor = ?", (canonical_vendor,))
 
 
 def reset() -> None:
@@ -379,7 +398,8 @@ def reset() -> None:
         conn.executescript(
             "DROP TABLE IF EXISTS vendor_facts; "
             "DROP TABLE IF EXISTS commercial_terms; "
-            "DROP TABLE IF EXISTS quote_items;"
+            "DROP TABLE IF EXISTS quote_items; "
+            "DROP TABLE IF EXISTS vendor_identity_docs;"
         )
         conn.executescript(SCHEMA)
 
@@ -520,39 +540,174 @@ def stats() -> dict:
         return {"vendor_facts": vf, "commercial_terms": ct, "quote_items": qi}
 
 def vendors_without_gstin() -> list[dict]:
-    """Vendors whose extracted GSTIN is NULL or empty."""
-    with _connect() as conn:
-        rows = conn.execute(
-            """SELECT DISTINCT canonical_vendor, source_doc
-               FROM vendor_facts
-               WHERE gstin IS NULL OR TRIM(gstin) = ''"""
-        ).fetchall()
-        return [dict(r) for r in rows]
+    """Vendors with no usable GSTIN (vendor level, across all documents).
+    Rows carry `pending` = True when a GST document awaits review."""
+    out = []
+    for v in all_vendors():
+        g = get_vendor_identity(v)["gstin"]
+        if not g["values"]:
+            out.append({"canonical_vendor": v, "gstin": None,
+                        "pending": bool(g["pending"]),
+                        "source_doc": (g["pending"] or [{}])[0].get("source")})
+    return out
 
 
 def vendors_with_gstin() -> list[dict]:
-    """Vendors whose extracted GSTIN is present."""
+    """Vendors with at least one usable GSTIN (one row per GSTIN)."""
+    out = []
+    for v in all_vendors():
+        for val in get_vendor_identity(v)["gstin"]["values"]:
+            out.append({"canonical_vendor": v, "gstin": val["value"],
+                        "source_doc": val["source"], "basis": val["basis"]})
+    return out
+
+
+# ---- Vendor identity (PAN / GSTIN) ------------------------------------
+
+USABLE_STATUSES = ("auto_ok", "approved")
+
+
+def all_vendors() -> list[str]:
     with _connect() as conn:
         rows = conn.execute(
-            """SELECT DISTINCT canonical_vendor, gstin, source_doc
-               FROM vendor_facts
-               WHERE gstin IS NOT NULL AND TRIM(gstin) != ''"""
-        ).fetchall()
-        return [dict(r) for r in rows]
+            "SELECT canonical_vendor FROM vendor_facts UNION "
+            "SELECT canonical_vendor FROM vendor_identity_docs "
+            "ORDER BY 1").fetchall()
+    return [r[0] for r in rows]
 
+
+def upsert_identity_doc(vendor: str, canonical_vendor: str, source: str,
+                        doc_type: str, id_type: str, id_value: Optional[str],
+                        holder_name: Optional[str], review_status: str) -> None:
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    with _connect() as conn:
+        conn.execute(
+            """INSERT INTO vendor_identity_docs
+               (vendor, canonical_vendor, source_doc, doc_type, id_type,
+                id_value, holder_name, review_status, updated_at)
+               VALUES (?,?,?,?,?,?,?,?,?)
+               ON CONFLICT(source_doc) DO UPDATE SET
+                 vendor=excluded.vendor, canonical_vendor=excluded.canonical_vendor,
+                 doc_type=excluded.doc_type, id_type=excluded.id_type,
+                 id_value=excluded.id_value, holder_name=excluded.holder_name,
+                 review_status=excluded.review_status, updated_at=excluded.updated_at""",
+            (vendor, canonical_vendor, source, doc_type, id_type, id_value,
+             holder_name, review_status, now))
+
+
+def set_identity_status(source: str, review_status: str) -> None:
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    with _connect() as conn:
+        conn.execute("UPDATE vendor_identity_docs SET review_status=?, updated_at=? "
+                     "WHERE source_doc=?", (review_status, now, source))
+
+
+def identity_docs_for_vendor(canonical_vendor: str) -> list[dict]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM vendor_identity_docs WHERE canonical_vendor = ? "
+            "ORDER BY id", (canonical_vendor,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def quote_identity_values(canonical_vendor: str) -> list[dict]:
+    """PAN/GSTIN printed on the vendor's other documents (LLM-extracted),
+    excluding PAN/GST documents themselves."""
+    with _connect() as conn:
+        rows = conn.execute(
+            """SELECT source_doc,
+                      UPPER(REPLACE(TRIM(gstin), ' ', '')) AS gstin,
+                      UPPER(REPLACE(TRIM(pan),   ' ', '')) AS pan
+               FROM vendor_facts
+               WHERE canonical_vendor = ?
+                 AND source_doc NOT IN (SELECT source_doc FROM vendor_identity_docs)
+                 AND ((gstin IS NOT NULL AND TRIM(gstin) != '')
+                   OR (pan   IS NOT NULL AND TRIM(pan)   != ''))
+               ORDER BY updated_at DESC""",
+            (canonical_vendor,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_vendor_identity(canonical_vendor: str) -> dict:
+    """
+    Vendor-level PAN and GSTIN, resolved across all documents:
+
+      1. approved / auto-accepted PAN card or GST certificate wins
+         (a PAN can also be taken from an approved GSTIN: chars 3-12)
+      2. otherwise the value printed on a quote / other document
+      3. values from documents awaiting review are never used; they are
+         reported under `pending`
+
+    Returns {"pan": {...}, "gstin": {...}}, each with
+      values:  [{"value", "source", "basis"}]   basis = id_document |
+               derived_from_gstin_document | quote | derived_from_quote_gstin
+      pending: [{"value", "source", "doc_type"}]
+    """
+    docs = identity_docs_for_vendor(canonical_vendor)
+    quotes = quote_identity_values(canonical_vendor)
+    out = {"pan": {"values": [], "pending": []},
+           "gstin": {"values": [], "pending": []}}
+
+    def add(kind, value, source, basis):
+        if value and value not in {v["value"] for v in out[kind]["values"]}:
+            out[kind]["values"].append({"value": value, "source": source, "basis": basis})
+
+    for d in docs:
+        if d["review_status"] in USABLE_STATUSES:
+            add(d["id_type"], d["id_value"], d["source_doc"], "id_document")
+        elif d["review_status"] == "needs_review":
+            out[d["id_type"]]["pending"].append(
+                {"value": d["id_value"], "source": d["source_doc"], "doc_type": d["doc_type"]})
+
+    if not out["pan"]["values"] and not out["pan"]["pending"]:
+        for v in list(out["gstin"]["values"]):
+            add("pan", v["value"][2:12], v["source"], "derived_from_gstin_document")
+
+    # Quote values only fill gaps; they never override an ID document and
+    # are not shown as answers while an ID document of that kind is pending
+    # (callers still mention them as "printed on the quote").
+    quote_vals = {"pan": [], "gstin": []}
+    for q in quotes:
+        if q["gstin"]:
+            quote_vals["gstin"].append((q["gstin"], q["source_doc"]))
+        if q["pan"]:
+            quote_vals["pan"].append((q["pan"], q["source_doc"]))
+    # A PAN can also be read from a GSTIN printed on a quote
+    quote_pans = quote_vals["pan"] + [(g[2:12], src) for g, src in quote_vals["gstin"]
+                                      if len(g) == 15]
+    for kind, vals in (("pan", quote_pans), ("gstin", quote_vals["gstin"])):
+        if out[kind]["values"]:
+            continue
+        for val, src in vals:
+            if out[kind]["pending"]:
+                qv = out[kind].setdefault("quote_values", [])
+                if val not in {q["value"] for q in qv}:
+                    qv.append({"value": val, "source": src})
+            else:
+                basis = ("derived_from_quote_gstin"
+                         if kind == "pan" and (val, src) not in quote_vals["pan"]
+                         else "quote")
+                add(kind, val, src, basis)
+    return out
 
 
 # ---- Vendor-facts single-field lookups --------------------------------
 
-def get_vendor_field(canonical_vendor: str, field: str) -> Optional[str]:
-    """Fetch one field from vendor_facts for one vendor."""
+def get_vendor_field(canonical_vendor: str, field: str) -> Optional[dict]:
+    """
+    Fetch one field for one vendor: the most recent document that actually
+    has a value (a vendor has one vendor_facts row per document, and most
+    documents leave most fields empty). PAN/GSTIN should go through
+    get_vendor_identity(), which also honours PAN/GST documents and review.
+    """
     allowed = {"address", "gstin", "pan", "cin", "quote_number", "quote_date"}
     if field not in allowed:
         return None
     with _connect() as conn:
         row = conn.execute(
             f"SELECT {field}, source_doc FROM vendor_facts "
-            f"WHERE canonical_vendor = ? LIMIT 1",
+            f"WHERE canonical_vendor = ? AND {field} IS NOT NULL "
+            f"AND TRIM({field}) != '' ORDER BY updated_at DESC LIMIT 1",
             (canonical_vendor,),
         ).fetchone()
         return dict(row) if row else None

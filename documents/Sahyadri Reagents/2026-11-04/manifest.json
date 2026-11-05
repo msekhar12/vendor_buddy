@@ -1,0 +1,80 @@
+{
+  "vendor": "Sahyadri Reagents",
+  "date": "2026-11-04",
+  "docs": [
+    {
+      "filename": "sahyadri_quote.png",
+      "labels": [
+        "quote"
+      ],
+      "label_source": "user",
+      "sha256": "7a6f4d1ccc61c8104e15ebb066323e054b3ab3be6633f84e01eec0a826b526e6",
+      "size_bytes": 217192,
+      "uploaded_by": "anonymous",
+      "uploaded_at": "2026-11-05T03:50:17+00:00",
+      "doc_type": "quote",
+      "review_status": "auto_ok",
+      "review_reasons": [],
+      "doc_reasons": [],
+      "acknowledged_reasons": [],
+      "extraction": {
+        "method": "ocr",
+        "ocr": {
+          "mean_conf": 93.42,
+          "n_words": 130,
+          "junk_ratio": 0.04,
+          "sharpness": 2643.19,
+          "width": 1654,
+          "height": 2339,
+          "timed_out": false,
+          "rotated_deg": 0
+        },
+        "text_file": "sahyadri_quote.png.ocr.txt"
+      }
+    },
+    {
+      "filename": "sahyadri_pan_labelled_quote.png",
+      "labels": [
+        "quote"
+      ],
+      "label_source": "user",
+      "sha256": "b88d14ff596cac725094e880bbe3c86d173db9c7356a4d06ce23bece98f6a499",
+      "size_bytes": 100726,
+      "uploaded_by": "anonymous",
+      "uploaded_at": "2026-11-05T03:59:48+00:00",
+      "doc_type": "pan_card",
+      "review_status": "approved",
+      "review_reasons": [],
+      "doc_reasons": [],
+      "acknowledged_reasons": [
+        "label_mismatch"
+      ],
+      "extraction": {
+        "method": "ocr",
+        "ocr": {
+          "mean_conf": 94.45,
+          "n_words": 27,
+          "junk_ratio": 0.07,
+          "sharpness": 1771.97,
+          "width": 1400,
+          "height": 880,
+          "timed_out": false,
+          "rotated_deg": 0
+        },
+        "text_file": "sahyadri_pan_labelled_quote.png.ocr.txt"
+      },
+      "identity": {
+        "id_type": "pan",
+        "id_value": "AAMCS3307H",
+        "holder_names": [
+          "SAHYADRI REAGENTS PRIVATE LIMITED"
+        ]
+      },
+      "reviewed_by": "ui",
+      "reviewed_at": "2026-11-05T04:00:19+00:00",
+      "ack_group": [
+        "/Users/sekhar/Projects/civsa/documents/Sahyadri Reagents/2026-11-04/sahyadri_pan_labelled_quote.png"
+      ]
+    }
+  ]
+}

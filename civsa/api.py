@@ -22,17 +22,17 @@ from pathlib import Path
 from typing import Annotated, Any, cast
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import tfidf_store, vector_store, vendor_score
+from . import review, tfidf_store, vector_store, vendor_score
 from .config import ALLOWED_LABELS, DOC_STORE, MAX_UPLOAD_MB, SQLITE_PATH
-from .extract import extract_text
+from .extract import SUPPORTED_EXTS, extract_text
 from .gate.pipeline import process as gate
-from .indexer import index_document
+from .indexer import index_document_tracked, mark_queued
 from .manifest import (
-    append_doc,
     find_duplicate,
     load_manifest,
     save_manifest,
@@ -52,6 +52,14 @@ from . import structured
 
 structured.init_db(SQLITE_PATH)
 
+def queue_index(background: BackgroundTasks, path: Path, vendor: str, date: str,
+                labels: list[str], text: str | None) -> None:
+    """Schedule background indexing, counted as in-flight from now on
+    (vendor rename refuses to run while a vendor has jobs in flight)."""
+    mark_queued(path)
+    background.add_task(index_document_tracked, path, vendor, date, labels, text)
+
+
 @app.get("/api/labels")
 def list_labels():
     return {"labels": sorted(ALLOWED_LABELS)}
@@ -69,6 +77,9 @@ async def upload(
     if not file.filename:
         raise HTTPException(400, "Uploaded file must have a filename.")
     filename = file.filename
+    if Path(filename).suffix.lower() not in SUPPORTED_EXTS:
+        raise HTTPException(400, f"Unsupported file type. Allowed: "
+                                 f"{', '.join(sorted(SUPPORTED_EXTS))}")
 
     bad = [l for l in labels
            if l not in ALLOWED_LABELS and not l.startswith("other:")]
@@ -89,8 +100,12 @@ async def upload(
 
     date = datetime.now().astimezone().strftime("%Y-%m-%d")
     path = STORAGE.put(vendor, date, filename, content)
+    refresh_vendor_index()          # new vendor folders must resolve below
 
-    append_doc(path.parent, {
+    # Extraction (OCR for images / scanned PDFs) + quality, relevance and
+    # PAN/GSTIN checks run now, so the upload card can show a flag at once.
+    # This also writes the manifest entry.
+    result = await run_in_threadpool(review.process_upload, path, vendor, labels, {
         "filename":     filename,
         "labels":       labels,
         "label_source": "user",
@@ -99,10 +114,20 @@ async def upload(
         "uploaded_by":  uploaded_by,
         "uploaded_at":  datetime.now(timezone.utc).isoformat(timespec="seconds"),  # noqa: UP017
     })
-    background.add_task(index_document, path, vendor, date, labels)
-    refresh_vendor_index()
+    if result["index"]:
+        queue_index(background, path, vendor, date, labels, result["text"])
     return {"status": "stored", "path": str(path), "hash": file_hash,
-            "labels": labels}
+            "labels": labels,
+            # where it was stored, so the UI can re-check its review status
+            "vendor_folder":   path.parent.parent.name,
+            "date":            date,
+            "filename":        path.name,
+            "review_status":   result["review_status"],
+            "review_reasons":  result["review_reasons"],
+            "review_messages": result["review_messages"],
+            "doc_type":        result["doc_type"],
+            "identity":        result["identity"],
+            "ocr":             result["ocr"]}
 
 
 # ================================================================
@@ -356,6 +381,19 @@ def update_doc_labels(
 # ================================================================
 # Delete
 # ================================================================
+@app.post("/api/vendor/{vendor}/rename")
+def rename_vendor(vendor: str, new_name: Annotated[str, Form()]):
+    """Rename a vendor everywhere (folder, manifests, Chroma, TF-IDF, SQLite,
+    PAN/GST records). The old name stays resolvable as an alias."""
+    from .vendor_ops import RenameError
+    from .vendor_ops import rename_vendor as do_rename
+    try:
+        result = do_rename(vendor, new_name)
+    except RenameError as e:
+        raise HTTPException(e.status, str(e)) from e
+    return {"status": "renamed", **result}
+
+
 @app.delete("/api/vendor/{vendor}")
 def delete_vendor(vendor: str):
     vendor_root = STORAGE.root / vendor
@@ -365,6 +403,10 @@ def delete_vendor(vendor: str):
     n_chroma = vector_store.remove_by_vendor(vendor)
     n_tfidf  = tfidf_store.remove_by_vendor(vendor)
     structured.remove_by_vendor(vendor)
+    from .vendor_index import get_vendor_index
+    canonical = get_vendor_index().resolve(vendor).canonical
+    if canonical and canonical != vendor:
+        structured.remove_by_vendor(canonical)
     shutil.rmtree(vendor_root)
     refresh_vendor_index()
 
@@ -383,12 +425,17 @@ def delete_doc(vendor: str, date: str, filename: str):
     source = str(file_path)
     n_chroma = vector_store.remove_by_source(source)
     n_tfidf  = tfidf_store.remove_by_source(source)
-    structured.remove_by_source(source)  
+    structured.remove_by_source(source)
 
     mf = load_manifest(folder)
     mf["docs"] = [d for d in mf["docs"] if d["filename"] != filename]
     save_manifest(folder, mf)
     file_path.unlink()
+    review.sidecar_path(file_path).unlink(missing_ok=True)
+    # Re-check the vendor's PAN/GST rules. Deleting an extra document does
+    # not clear existing flags; a reviewer has to approve what is left.
+    from .vendor_index import get_vendor_index
+    review.evaluate_vendor(get_vendor_index().resolve(vendor).canonical or vendor)
 
     # NOTE: folders are intentionally retained when empty.
     # The vendor row stays visible in the Vendors tab until the user
@@ -628,6 +675,100 @@ def api_rankings_rank(req: RankRequest):
     for row in result["rows"]:
         row["narrative"] = vendor_score.build_narrative(row, result["baseline"])
     return result
+
+# ================================================================
+# Manual review (flagged uploads, PAN/GST documents)
+# ================================================================
+@app.get("/api/review")
+def api_review_queue():
+    q = review.review_queue()
+    return {"vendors": q, "count": sum(len(v["flagged"]) for v in q)}
+
+
+@app.get("/api/review/count")
+def api_review_count():
+    return {"count": review.review_count()}
+
+
+def _serve_doc(vendor: str, date: str, filename: str) -> FileResponse:
+    """Serve a stored document inline (opens in the browser rather than
+    downloading where the browser can display it: PDF, images, text)."""
+    try:
+        p = review._doc_path(vendor, date, filename)
+    except review.ReviewError as e:
+        raise HTTPException(404, str(e)) from e
+    media = ("text/plain; charset=utf-8"
+             if p.suffix.lower() in (".txt", ".md") else None)
+    return FileResponse(p, media_type=media)
+
+
+@app.get("/api/vendor/{vendor}/doc/file")
+def api_vendor_doc_file(vendor: str, date: str, filename: str):
+    return _serve_doc(vendor, date, filename)
+
+
+@app.get("/api/review/file")
+def api_review_file(vendor: str, date: str, filename: str):
+    return _serve_doc(vendor, date, filename)
+
+
+@app.get("/api/review/text")
+def api_review_text(vendor: str, date: str, filename: str):
+    try:
+        p = review._doc_path(vendor, date, filename)
+    except review.ReviewError as e:
+        raise HTTPException(404, str(e)) from e
+    sc = review.sidecar_path(p)
+    text = sc.read_text() if sc.exists() else extract_text(p)
+    return {"text": text}
+
+
+def _schedule_index(background: BackgroundTasks, vendor: str, date: str,
+                    filename: str, result: dict) -> None:
+    if result["index"]:
+        entry = result["entry"]
+        queue_index(background, STORAGE.root / vendor / date / filename,
+                    vendor, date, entry.get("labels", []), result["text"])
+
+
+@app.post("/api/review/resolve")
+def api_review_resolve(
+    background: BackgroundTasks,
+    vendor: Annotated[str, Form()],
+    date: Annotated[str, Form()],
+    filename: Annotated[str, Form()],
+    action: Annotated[str, Form()],
+    text: Annotated[str | None, Form()] = None,
+    id_value: Annotated[str | None, Form()] = None,
+    reviewer: Annotated[str, Form()] = "anonymous",
+):
+    try:
+        result = review.resolve(vendor, date, filename, action, text=text,
+                                id_value=id_value, reviewer=reviewer)
+    except review.ReviewError as e:
+        raise HTTPException(400, str(e)) from e
+    _schedule_index(background, vendor, date, filename, result)
+    return {"status": result["entry"].get("review_status"),
+            "indexing": result["index"], "entry": result["entry"]}
+
+
+@app.post("/api/review/resolve-group")
+def api_review_resolve_group(
+    vendor: Annotated[str, Form()],
+    id_type: Annotated[str, Form()],
+    action: Annotated[str, Form()],
+    keep_date: Annotated[str | None, Form()] = None,
+    keep_filename: Annotated[str | None, Form()] = None,
+    reviewer: Annotated[str, Form()] = "anonymous",
+):
+    keep = [(keep_date, keep_filename)] if keep_date and keep_filename else None
+    try:
+        entries = review.resolve_group(vendor, id_type, action, keep=keep,
+                                       reviewer=reviewer)
+    except review.ReviewError as e:
+        raise HTTPException(400, str(e)) from e
+    return {"status": "resolved", "entries": entries}
+
 
 # ================================================================
 # Static web UI

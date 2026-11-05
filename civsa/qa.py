@@ -13,6 +13,7 @@ Query shapes better served by Phase 2 add-on A (structured facts DB):
   - Numeric filter:   "vendors with price under 500", "purity >= 99%"
 """
 import re
+from pathlib import Path
 from typing import Any, Optional, cast
 
 from . import config, tfidf_store, vector_store
@@ -502,6 +503,8 @@ def _try_structured(query: str) -> dict | None:
             "quote no.": "quote_number", "quote date": "quote_date",
         }
         field = field_map.get(field_raw)
+        if field in ("pan", "gstin"):
+            return _format_identity(resolved.canonical, field, field_raw)
         if field:
             row = structured.get_vendor_field(resolved.canonical, field)
             val = (row or {}).get(field)
@@ -633,16 +636,15 @@ def _try_structured(query: str) -> dict | None:
         if not rows:
             return {"answer": f"{heading}\n\n(No matching entries.)",
                     "sources": [], "route_method": "structured_sql_empty"}
-        seen: set[str] = set()
         lines = [heading, ""]
         sources: list[dict] = []
         for r in rows:
             v = r["canonical_vendor"]
-            if v in seen: continue
-            seen.add(v)
             g = r.get("gstin")
-            lines.append(f"• {v}" + (f" — GSTIN {g}" if g else ""))
-            sources.append({"source": r["source_doc"], "vendor": v})
+            note = " (GST document pending manual review)" if r.get("pending") else ""
+            lines.append(f"• {v}" + (f" — GSTIN {g}" if g else "") + note)
+            if r.get("source_doc"):
+                sources.append({"source": r["source_doc"], "vendor": v})
         return {"answer": "\n".join(lines), "sources": sources,
                 "route_method": "structured_sql"}
 
@@ -811,6 +813,42 @@ def _try_structured(query: str) -> dict | None:
                 "route_method": "structured_corpus"}
 
     return None
+
+
+_BASIS_TEXT = {
+    "id_document":                 "from the {doc} document",
+    "derived_from_gstin_document": "derived from the GSTIN on the GST certificate",
+    "quote":                       "as printed on the vendor's document",
+    "derived_from_quote_gstin":    "derived from the GSTIN printed on the vendor's document",
+}
+
+
+def _format_identity(canonical: str, field: str, field_raw: str) -> dict:
+    """PAN / GSTIN answer resolved across all of a vendor's documents,
+    including separately uploaded PAN cards / GST certificates."""
+    from . import structured
+    ident = structured.get_vendor_identity(canonical)[field]
+    label = "PAN" if field == "pan" else "GSTIN"
+    doc = "PAN card" if field == "pan" else "GST certificate"
+    sources = [{"source": v["source"], "vendor": canonical} for v in ident["values"]]
+    lines = []
+    for v in ident["values"]:
+        basis = _BASIS_TEXT.get(v["basis"], v["basis"]).format(doc=doc)
+        lines.append(f"{label}: {v['value']} ({basis}: {Path(v['source']).name})")
+    if ident["pending"]:
+        n = len(ident["pending"])
+        files = ", ".join(Path(p["source"]).name for p in ident["pending"])
+        lines.append(f"{label} is pending manual review — {n} {doc} "
+                     f"document{'s' if n > 1 else ''} awaiting a decision ({files}).")
+        for q in ident.get("quote_values", []):
+            lines.append(f"Printed on the vendor's document (unverified): {q['value']} "
+                         f"({Path(q['source']).name})")
+            sources.append({"source": q["source"], "vendor": canonical})
+    if not lines:
+        return {"answer": f"No {field_raw} on file for {canonical}.",
+                "sources": [], "route_method": "structured_sql_empty"}
+    return {"answer": f"{canonical} — " + "\n".join(lines),
+            "sources": sources, "route_method": "structured_sql"}
 
 
 def _format_vendor_list(heading: str, rows: list[dict]) -> dict:

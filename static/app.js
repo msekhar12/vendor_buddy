@@ -21,6 +21,8 @@ document.querySelectorAll(".tab").forEach((btn) => {
     if (btn.dataset.tab === "vendors") loadVendors();
     if (btn.dataset.tab === "debug") loadDebugStats();
     if (btn.dataset.tab === "rankings") initRankings();
+    if (btn.dataset.tab === "review") loadReview();
+    if (btn.dataset.tab === "upload") refreshUploadLogStatuses();
   });
 });
 
@@ -167,11 +169,16 @@ function makeFileCard(file) {
   vendorRow.className = "vendor-row";
   vendorRow.innerHTML = `
     <label class="vendor-label" for="vendor-input">Vendor</label>
-    <input type="text" class="vendor-input" id="vendor-input"
-           placeholder="e.g. Nirmala Chemicals Pvt Ltd" autocomplete="off">
+    <div class="vendor-combo">
+      <input type="text" class="vendor-input" id="vendor-input"
+             placeholder="Start typing to pick an existing vendor, or enter a new name"
+             autocomplete="off" role="combobox" aria-autocomplete="list"
+             aria-expanded="false" aria-controls="vendor-suggest">
+      <ul class="vendor-suggest" id="vendor-suggest" role="listbox" hidden></ul>
+    </div>
   `;
   const vendorInput = vendorRow.querySelector(".vendor-input");
-  vendorInput.value = guessVendorFromFilename(file.name);
+  attachVendorAutocomplete(vendorInput, vendorRow.querySelector(".vendor-suggest"));
   card.appendChild(vendorRow);
 
   const lh = document.createElement("div");
@@ -225,18 +232,99 @@ function makeFileCard(file) {
   return card;
 }
 
-function guessVendorFromFilename(name) {
-  let base = name.replace(/\.[^.]+$/, "");
-  // strip trailing quote/invoice/rfq words and numbers
-  base = base.replace(
-    /[_\-\s]*(quote|quotation|quot|invoice|inv|contract|po|rfq|coa|msds|catalog|brochure)[_\-\s]*\d*$/i,
-    "",
-  );
-  base = base
-    .replace(/[_\-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  return base.replace(/\b\w/g, (c) => c.toUpperCase());
+/* ---------- Vendor autocomplete (Upload card) ---------- */
+let VENDOR_NAMES = null;            // cached GET /api/vendors; reset after changes
+
+async function getVendorNames(force = false) {
+  if (VENDOR_NAMES && !force) return VENDOR_NAMES;
+  try {
+    const r = await fetch(`${API}/api/vendors`);
+    VENDOR_NAMES = (await r.json()).vendors || [];
+  } catch {
+    VENDOR_NAMES = VENDOR_NAMES || [];
+  }
+  return VENDOR_NAMES;
+}
+
+function rankVendorMatches(names, q) {
+  const needle = q.toLowerCase().trim();
+  if (!needle) return [];
+  const scored = [];
+  for (const name of names) {
+    const lower = name.toLowerCase();
+    const at = lower.indexOf(needle);
+    if (at === -1) continue;
+    // whole-name prefix first, then a word starting with the text, then anywhere
+    const wordStart = at === 0 || /[\s\-_&(.,]/.test(lower[at - 1]);
+    scored.push({ name, at, rank: at === 0 ? 0 : wordStart ? 1 : 2 });
+  }
+  scored.sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
+  return scored.slice(0, 8);
+}
+
+function attachVendorAutocomplete(input, list) {
+  let items = [];
+  let active = -1;
+
+  function close() {
+    list.hidden = true;
+    list.innerHTML = "";
+    input.setAttribute("aria-expanded", "false");
+    active = -1;
+  }
+
+  function choose(name) {
+    input.value = name;
+    close();
+    input.dispatchEvent(new Event("change"));
+  }
+
+  function highlight() {
+    [...list.querySelectorAll(".vendor-option")].forEach((li, i) => {
+      li.classList.toggle("active", i === active);
+      li.setAttribute("aria-selected", i === active ? "true" : "false");
+      if (i === active) li.scrollIntoView({ block: "nearest" });
+    });
+  }
+
+  async function render() {
+    const q = input.value;
+    if (!q.trim()) return close();
+    items = rankVendorMatches(await getVendorNames(), q);
+    const exact = items.some((m) => m.name.toLowerCase() === q.trim().toLowerCase());
+    list.innerHTML = items.map((m, i) => {
+      const n = m.name;
+      const t = q.trim().length;
+      return `<li class="vendor-option" role="option" data-i="${i}">${escapeHTML(n.slice(0, m.at))}<mark>${escapeHTML(n.slice(m.at, m.at + t))}</mark>${escapeHTML(n.slice(m.at + t))}</li>`;
+    }).join("") + (exact ? "" :
+      `<li class="vendor-new" aria-disabled="true">${items.length ? "Or create a" : "No existing vendor matches. This will create a"} new vendor: <b>${escapeHTML(q.trim())}</b></li>`);
+    active = -1;
+    list.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+  }
+
+  input.addEventListener("input", render);
+  input.addEventListener("focus", () => { getVendorNames(true); if (input.value.trim()) render(); });
+  input.addEventListener("keydown", (e) => {
+    if (list.hidden) return;
+    if (e.key === "ArrowDown" && items.length) {
+      active = (active + 1) % items.length; highlight(); e.preventDefault();
+    } else if (e.key === "ArrowUp" && items.length) {
+      active = (active - 1 + items.length) % items.length; highlight(); e.preventDefault();
+    } else if (e.key === "Enter" && active >= 0) {
+      choose(items[active].name); e.preventDefault();
+    } else if (e.key === "Escape") {
+      close();
+    }
+  });
+  // mousedown (not click) so the choice lands before the input's blur closes the list
+  list.addEventListener("mousedown", (e) => {
+    const li = e.target.closest(".vendor-option");
+    if (!li) return;
+    e.preventDefault();
+    choose(items[Number(li.dataset.i)].name);
+  });
+  input.addEventListener("blur", () => setTimeout(close, 100));
 }
 
 function closeStaging() {
@@ -305,7 +393,16 @@ async function uploadFile(file, ui) {
         vendor: vendor,
         path: data.path,
         hash: data.hash,
+        flagged: data.review_status === "needs_review",
+        vendorFolder: data.vendor_folder,
+        date: data.date,
+        storedName: data.filename,
+        reviewMessages: data.review_messages || [],
+        docType: data.doc_type,
+        identity: data.identity,
       });
+      refreshReviewBadge();
+      VENDOR_NAMES = null;          // a new vendor may have been created
     }
   } catch (e) {
     ui.status.textContent = `Upload failed: ${e.message}`;
@@ -323,10 +420,12 @@ function appendUploadLog(entry) {
   const row = document.createElement("div");
   row.className = entry.duplicate
     ? "upload-log-row duplicate"
-    : "upload-log-row";
+    : entry.flagged
+      ? "upload-log-row flagged"
+      : "upload-log-row";
 
   row.innerHTML = `
-    <span class="check">${entry.duplicate ? "↺" : "✓"}</span>
+    <span class="check">${entry.duplicate ? "↺" : entry.flagged ? "!" : "✓"}</span>
     <div class="log-body">
       <div class="log-line-primary"></div>
       <div class="log-line-secondary"></div>
@@ -344,6 +443,9 @@ function appendUploadLog(entry) {
   if (entry.duplicate) {
     verb.className = "log-verb-dup";
     verb.textContent = "already in corpus — nothing new indexed";
+  } else if (entry.flagged) {
+    verb.className = "log-verb-flag";
+    verb.textContent = "flagged for manual review — not used until approved";
   } else {
     verb.textContent = "uploaded";
   }
@@ -372,9 +474,33 @@ function appendUploadLog(entry) {
         : "No tags",
     );
   }
+  if (entry.identity && entry.identity.id_value) {
+    parts.push(`${entry.identity.id_type.toUpperCase()} read: ${entry.identity.id_value}`);
+  }
   parts.push(formatBytes(entry.size));
   if (entry.hash) parts.push(`sha256:${entry.hash.slice(0, 8)}…`);
   row.querySelector(".log-line-secondary").textContent = parts.join(" · ");
+
+  if (entry.flagged && entry.vendorFolder) {
+    row.dataset.vendor = entry.vendorFolder;
+    row.dataset.date = entry.date;
+    row.dataset.filename = entry.storedName;
+  }
+  if (entry.flagged) {
+    const why = document.createElement("div");
+    why.className = "log-flag-reasons";
+    why.textContent = "Why: " + (entry.reviewMessages.join("; ") || "needs review");
+    const go = document.createElement("button");
+    go.type = "button";
+    go.className = "btn btn-small";
+    go.textContent = "Open Review tab";
+    go.addEventListener("click", () =>
+      document.querySelector('.tab[data-tab="review"]').click(),
+    );
+    why.appendChild(document.createTextNode(" "));
+    why.appendChild(go);
+    row.querySelector(".log-body").insertBefore(why, row.querySelector(".log-time"));
+  }
 
   uploadLog.insertBefore(row, uploadLog.firstChild);
 }
@@ -537,7 +663,7 @@ async function renderVendorBody(vendor, body) {
         row.dataset.date = d.date;
         row.innerHTML = `
           <div>
-            <div><strong>${escapeHTML(d.filename)}</strong></div>
+            <div><a class="doc-link" href="${API}/api/vendor/${encodeURIComponent(vendor)}/doc/file?${new URLSearchParams({ date: d.date, filename: d.filename })}" target="_blank" rel="noopener" title="Open in a new tab"><strong>${escapeHTML(d.filename)}</strong> <span class="doc-link-icon" aria-hidden="true">↗</span></a></div>
             <div class="fmeta">${escapeHTML(d.date)} · ${((d.size_bytes || 0) / 1024).toFixed(1)} KB</div>
           </div>
           <div style="text-align:right">
@@ -562,9 +688,13 @@ async function renderVendorBody(vendor, body) {
     const actions = document.createElement("div");
     actions.className = "vendor-actions";
     actions.innerHTML = `
+      <button class="chip rename-vendor-btn">Rename vendor</button>
       <button class="danger delete-vendor-btn">
         Delete this vendor (all ${docs.length} document${docs.length === 1 ? "" : "s"})
       </button>`;
+    actions
+      .querySelector(".rename-vendor-btn")
+      .addEventListener("click", () => openRenameEditor(vendor, body, actions));
     actions
       .querySelector(".delete-vendor-btn")
       .addEventListener("click", () => deleteVendor(vendor));
@@ -572,6 +702,66 @@ async function renderVendorBody(vendor, body) {
   } catch {
     body.innerHTML = `<div class="empty">Could not load documents.</div>`;
   }
+}
+
+function openRenameEditor(vendor, body, actions) {
+  if (body.querySelector(".rename-editor")) return;
+  const ed = document.createElement("div");
+  ed.className = "rename-editor";
+  ed.innerHTML = `
+    <label class="rename-label">New name for <b>${escapeHTML(vendor)}</b></label>
+    <div class="rename-row">
+      <input type="text" class="rename-input" maxlength="100">
+      <button class="btn btn-primary rename-save">Save</button>
+      <button class="btn rename-cancel">Cancel</button>
+    </div>
+    <div class="rename-note">Updates the vendor everywhere: its folder, documents, search
+      indexes, extracted facts and PAN/GST records. The old name keeps working in questions.</div>
+    <div class="rename-msg"></div>`;
+  const input = ed.querySelector(".rename-input");
+  input.value = vendor;
+  const msg = ed.querySelector(".rename-msg");
+  const save = ed.querySelector(".rename-save");
+
+  async function submit() {
+    const newName = input.value.trim();
+    if (!newName || newName === vendor) {
+      msg.textContent = "Enter a different name.";
+      return;
+    }
+    save.disabled = true;
+    msg.textContent = "Renaming…";
+    try {
+      const form = new FormData();
+      form.append("new_name", newName);
+      const r = await fetch(`${API}/api/vendor/${encodeURIComponent(vendor)}/rename`,
+        { method: "POST", body: form });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+      VENDOR_NAMES = null;
+      await loadVendors();
+      // Re-open the renamed vendor so the user sees the result
+      const card = [...document.querySelectorAll("#vendorlist .vendorcard")]
+        .find((c) => c.querySelector("summary").textContent === data.new);
+      if (card) {
+        card.open = true;
+        card.scrollIntoView({ block: "nearest" });
+      }
+    } catch (e) {
+      msg.textContent = e.message;
+      msg.classList.add("error");
+      save.disabled = false;
+    }
+  }
+  save.addEventListener("click", submit);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submit();
+    if (e.key === "Escape") ed.remove();
+  });
+  ed.querySelector(".rename-cancel").addEventListener("click", () => ed.remove());
+  body.insertBefore(ed, actions);
+  input.focus();
+  input.select();
 }
 
 function openLabelEditor(vendor, row, body) {
@@ -1382,3 +1572,283 @@ if (dropZone && fileInput) {
     }
   });
 }
+
+
+/* Upload history rows are a snapshot; re-check flagged ones against the
+   manifests so a decision made in the Review tab shows up here too. */
+async function refreshUploadLogStatuses() {
+  const rows = [...document.querySelectorAll(".upload-log-row.flagged[data-vendor]")];
+  if (!rows.length) return;
+  const byVendor = {};
+  for (const v of new Set(rows.map((r) => r.dataset.vendor))) {
+    try {
+      const r = await fetch(`${API}/api/vendor/${encodeURIComponent(v)}/manifest`);
+      byVendor[v] = r.ok ? (await r.json()).folders : null;
+    } catch {
+      byVendor[v] = undefined;        // network problem: leave the rows alone
+    }
+  }
+  for (const row of rows) {
+    const folders = byVendor[row.dataset.vendor];
+    if (folders === undefined) continue;
+    const doc = (folders || [])
+      .filter((f) => f.date === row.dataset.date)
+      .flatMap((f) => f.docs || [])
+      .find((d) => d.filename === row.dataset.filename);
+    const status = doc ? doc.review_status : "deleted";
+    if (status === "needs_review") continue;
+    const verb = row.querySelector(".log-verb-flag");
+    const check = row.querySelector(".check");
+    row.querySelector(".log-flag-reasons")?.remove();
+    row.classList.remove("flagged");
+    if (status === "approved") {
+      row.classList.add("resolved-approved");
+      check.textContent = "✓";
+      verb.className = "log-verb-approved";
+      verb.textContent = "approved in review — now used in answers";
+    } else if (status === "rejected") {
+      row.classList.add("resolved-rejected");
+      check.textContent = "✕";
+      verb.className = "log-verb-rejected";
+      verb.textContent = "rejected in review — not used";
+    } else {
+      row.classList.add("resolved-rejected");
+      check.textContent = "–";
+      verb.className = "log-verb-rejected";
+      verb.textContent = status === "deleted" ? "deleted" : `status: ${status}`;
+    }
+  }
+}
+
+/* ============================================================
+   REVIEW TAB  (flagged uploads, PAN / GST documents)
+   ============================================================ */
+
+const IMAGE_RE = /\.(png|jpe?g|tiff?|bmp|webp)$/i;
+
+async function refreshReviewBadge() {
+  const badge = document.getElementById("review-badge");
+  if (!badge) return;
+  try {
+    const r = await fetch(`${API}/api/review/count`);
+    const { count } = await r.json();
+    badge.textContent = count;
+    badge.hidden = !count;
+  } catch {
+    badge.hidden = true;
+  }
+}
+refreshReviewBadge();
+
+function fileUrl(kind, d) {
+  const q = new URLSearchParams({ vendor: d.vendor, date: d.date, filename: d.filename });
+  return `${API}/api/review/${kind}?${q}`;
+}
+
+const DOC_TYPE_TEXT = {
+  pan_card: "PAN document",
+  gst_certificate: "GST certificate",
+  quote: "Quote",
+  other: "Other document",
+};
+
+function reviewDocCard(d, groupMode) {
+  const isId = d.doc_type === "pan_card" || d.doc_type === "gst_certificate";
+  const idType = d.identity?.id_type;
+  const ocr = d.ocr
+    ? `OCR confidence ${Math.round(d.ocr.mean_conf)}% · ${d.ocr.n_words} words · ${d.ocr.width}×${d.ocr.height}px`
+    : "native text (no OCR)";
+  const preview = IMAGE_RE.test(d.filename)
+    ? `<a href="${fileUrl("file", d)}" target="_blank" rel="noopener"><img class="review-img" src="${fileUrl("file", d)}" alt="${escapeHTML(d.filename)}" loading="lazy"></a>`
+    : `<a class="btn btn-small" href="${fileUrl("file", d)}" target="_blank" rel="noopener">Open file</a>`;
+  const status = d.review_status === "needs_review"
+    ? `<span class="review-status flag">needs review</span>`
+    : `<span class="review-status ok">${escapeHTML(d.review_status.replace("_", " "))}</span>`;
+  const reasons = (d.review_messages || []).length
+    ? `<ul class="review-reasons">${d.review_messages.map((m) => `<li>${escapeHTML(m)}</li>`).join("")}</ul>`
+    : "";
+  const idLine = isId
+    ? `<div class="review-id">${escapeHTML((idType || "id").toUpperCase())} read:
+         <code>${escapeHTML(d.identity?.id_value || "— none —")}</code>
+         ${d.identity?.holder_names?.length ? ` · name on document: <b>${escapeHTML(d.identity.holder_names[0])}</b>` : ""}</div>`
+    : "";
+
+  let actions = "";
+  if (d.review_status === "needs_review") {
+    if (isId) {
+      actions = `
+        <div class="review-actions">
+          <button class="btn btn-primary" data-act="approve">Approve</button>
+          <input type="text" class="review-id-input" placeholder="Correct ${escapeHTML((idType || "").toUpperCase())}" value="${escapeHTML(d.identity?.id_value || "")}">
+          <button class="btn" data-act="set_id">Save corrected number</button>
+          <button class="btn danger" data-act="reject">Reject</button>
+        </div>`;
+    } else {
+      actions = `
+        <details class="review-text" data-loaded="0">
+          <summary>OCR text (edit before saving if needed)</summary>
+          <textarea rows="12" placeholder="Loading…"></textarea>
+        </details>
+        <div class="review-actions">
+          ${d.ocr && d.ocr.n_words === 0
+            ? `<span class="hint-inline">No text could be read: open the panel above, type the document's content, then save.</span>`
+            : `<button class="btn btn-primary" data-act="approve">Approve OCR text</button>`}
+          <button class="btn" data-act="submit_text">Save edited text &amp; index</button>
+          <button class="btn danger" data-act="reject">Reject</button>
+        </div>`;
+    }
+  }
+  const keep = groupMode
+    ? `<button class="btn btn-small" data-group-keep="1">Keep only this one</button>`
+    : "";
+
+  return `
+    <div class="review-doc" data-vendor="${escapeHTML(d.vendor)}" data-date="${escapeHTML(d.date)}" data-filename="${escapeHTML(d.filename)}">
+      <div class="review-preview">${preview}</div>
+      <div class="review-body">
+        <div class="review-head">
+          <strong>${escapeHTML(d.filename)}</strong> ${status}
+          <span class="review-type">${escapeHTML(DOC_TYPE_TEXT[d.doc_type] || d.doc_type || "")}</span>
+        </div>
+        <div class="fmeta">${escapeHTML(d.date)} · labels: ${escapeHTML((d.labels || []).join(", "))} · ${escapeHTML(ocr)}</div>
+        ${idLine}
+        ${reasons}
+        ${actions}
+        ${keep}
+        <div class="review-msg"></div>
+      </div>
+    </div>`;
+}
+
+async function loadReview() {
+  const list = document.getElementById("review-list");
+  const summary = document.getElementById("review-summary");
+  list.innerHTML = `<div class="loading">Loading review queue…</div>`;
+  let body;
+  try {
+    const r = await fetch(`${API}/api/review`);
+    body = await r.json();
+  } catch {
+    list.innerHTML = `<div class="empty">Could not load the review queue.</div>`;
+    return;
+  }
+  summary.textContent = body.count
+    ? `${body.count} document(s) awaiting review across ${body.vendors.length} vendor(s)`
+    : "";
+  refreshReviewBadge();
+  if (!body.vendors.length) {
+    list.innerHTML = `<div class="empty">Nothing to review. Flagged uploads will appear here.</div>`;
+    return;
+  }
+
+  list.innerHTML = body.vendors.map((v) => {
+    // Multiple PAN / GST documents: show the whole group together
+    const groups = ["pan_card", "gst_certificate"].map((t) => {
+      const docs = v.id_docs.filter((d) => d.doc_type === t);
+      const flaggedMulti = docs.some((d) =>
+        (d.review_reasons || []).some((r) => r === "multiple_pan_docs" || r === "multiple_gst_docs"));
+      return { t, docs, multi: docs.length >= 2 && flaggedMulti };
+    });
+    const inGroup = new Set(groups.filter((g) => g.multi).flatMap((g) => g.docs.map((d) => d.filename + "|" + d.date)));
+    const groupHtml = groups.filter((g) => g.multi).map((g) => {
+      const idType = g.t === "pan_card" ? "pan" : "gstin";
+      const approveAll = idType === "gstin"
+        ? `<button class="btn" data-group-approve-all="1">Approve all (several state registrations, same PAN)</button>`
+        : "";
+      return `
+        <div class="review-group" data-vendor="${escapeHTML(v.vendor)}" data-id-type="${idType}">
+          <div class="review-group-head">
+            <b>${g.docs.length} ${escapeHTML(DOC_TYPE_TEXT[g.t])}s for this vendor</b> —
+            all are on hold until you decide. Keep one, or ${idType === "gstin" ? "approve all if they are genuine registrations for different states," : ""} reject the extras.
+            ${approveAll}
+          </div>
+          ${g.docs.map((d) => reviewDocCard(d, true)).join("")}
+        </div>`;
+    }).join("");
+    const singles = v.flagged.filter((d) => !inGroup.has(d.filename + "|" + d.date));
+    return `
+      <div class="review-vendor">
+        <h3 class="section-heading">${escapeHTML(v.vendor)}</h3>
+        ${groupHtml}
+        ${singles.map((d) => reviewDocCard(d, false)).join("")}
+      </div>`;
+  }).join("");
+}
+
+async function postForm(url, fields) {
+  const form = new FormData();
+  for (const [k, v] of Object.entries(fields)) if (v !== undefined && v !== null) form.append(k, v);
+  const r = await fetch(url, { method: "POST", body: form });
+  const text = await r.text();
+  let data = {};
+  try { data = JSON.parse(text); } catch { /* plain-text error */ }
+  if (!r.ok) throw new Error(data.detail || text || `HTTP ${r.status}`);
+  return data;
+}
+
+const reviewList = document.getElementById("review-list");
+if (reviewList) {
+  // Lazy-load OCR text when a text panel is opened
+  reviewList.addEventListener("toggle", async (e) => {
+    const det = e.target;
+    if (!(det instanceof HTMLDetailsElement) || !det.open || det.dataset.loaded === "1") return;
+    const card = det.closest(".review-doc");
+    const ta = det.querySelector("textarea");
+    try {
+      const r = await fetch(fileUrl("text", card.dataset));
+      ta.value = (await r.json()).text || "";
+      det.dataset.loaded = "1";
+    } catch {
+      ta.placeholder = "Could not load text.";
+    }
+  }, true);
+
+  reviewList.addEventListener("click", async (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    const card = btn.closest(".review-doc");
+    const group = btn.closest(".review-group");
+    const msg = card?.querySelector(".review-msg") || group?.querySelector(".review-group-head");
+    try {
+      if (btn.dataset.act) {
+        const fields = { ...card.dataset, action: btn.dataset.act, reviewer: "ui" };
+        if (btn.dataset.act === "set_id") {
+          fields.id_value = card.querySelector(".review-id-input").value.trim();
+        }
+        if (btn.dataset.act === "submit_text") {
+          const det = card.querySelector(".review-text");
+          if (det.dataset.loaded !== "1") { det.open = true; throw new Error("Open the OCR text, edit it, then save."); }
+          fields.text = det.querySelector("textarea").value;
+        }
+        btn.disabled = true;
+        await postForm(`${API}/api/review/resolve`, fields);
+      } else if (btn.dataset.groupKeep) {
+        btn.disabled = true;
+        await postForm(`${API}/api/review/resolve-group`, {
+          vendor: group.dataset.vendor, id_type: group.dataset.idType, action: "keep_one",
+          keep_date: card.dataset.date, keep_filename: card.dataset.filename, reviewer: "ui",
+        });
+      } else if (btn.dataset.groupApproveAll) {
+        btn.disabled = true;
+        await postForm(`${API}/api/review/resolve-group`, {
+          vendor: group.dataset.vendor, id_type: group.dataset.idType, action: "approve_all", reviewer: "ui",
+        });
+      } else {
+        return;
+      }
+      loadReview();
+      refreshUploadLogStatuses();
+    } catch (err) {
+      btn.disabled = false;
+      if (msg) {
+        const el = document.createElement("div");
+        el.className = "review-error";
+        el.textContent = err.message;
+        msg.appendChild(el);
+      }
+    }
+  });
+}
+
+const reviewRefresh = document.getElementById("review-refresh");
+if (reviewRefresh) reviewRefresh.addEventListener("click", loadReview);

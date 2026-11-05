@@ -10,7 +10,7 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="/static/style.css?v=3" />
+    <link rel="stylesheet" href="/static/style.css?v=9" />
   </head>
   <body>
     <header class="topbar">
@@ -35,6 +35,9 @@
         </button>
         <button class="tab" data-tab="vendors" role="tab" aria-selected="false">
           Vendors
+        </button>
+        <button class="tab" data-tab="review" role="tab" aria-selected="false">
+          Review <span id="review-badge" class="tab-badge" hidden>0</span>
         </button>
         <button
           class="tab"
@@ -77,7 +80,7 @@
             </svg>
             <span>Browse files…</span>
           </button>
-          <input type="file" id="file-input" accept=".pdf,.txt,.md" hidden />
+          <input type="file" id="file-input" accept=".pdf,.txt,.md,.png,.jpg,.jpeg,.tif,.tiff,.bmp,.webp" hidden />
           <span class="hint-inline"
             >PDF, TXT, or MD. One document at a time.</span
           >
@@ -98,7 +101,7 @@
             <polyline points="17 8 12 3 7 8" />
             <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
-          <p class="drop-title">Drag a PDF, TXT or Markdown file here</p>
+          <p class="drop-title">Drag a PDF, image (PNG/JPG/TIFF), TXT or Markdown file here</p>
           <p class="drop-sub">or</p>
           <button type="button" class="btn btn-primary" id="browse-btn">
             <svg
@@ -118,8 +121,8 @@
             </svg>
             <span>Browse files…</span>
           </button>
-          <input type="file" id="file-input" accept=".pdf,.txt,.md" hidden />
-          <p class="drop-hint">One document at a time · up to a few MB each</p>
+          <input type="file" id="file-input" accept=".pdf,.txt,.md,.png,.jpg,.jpeg,.tif,.tiff,.bmp,.webp" hidden />
+          <p class="drop-hint">One document at a time · up to a few MB each · images are read with OCR, and unclear or unrelated images go to the Review tab</p>
         </div>
         <div id="upload-staging" hidden></div>
 
@@ -183,6 +186,23 @@
       </section>
 
       <!-- ================= RANKINGS TAB ================= -->
+      <!-- ================= REVIEW TAB ================= -->
+      <section id="review" class="panel" role="tabpanel">
+        <h2>Manual review</h2>
+        <p class="hint">
+          Uploads that could not be trusted automatically: unclear or unrelated
+          images, labels that do not match the content, and PAN / GST documents
+          that need a decision (unreadable number, name or number mismatch, or
+          more than one PAN or GST document for a vendor). Nothing here is used
+          in answers until you approve it.
+        </p>
+        <div class="review-toolbar">
+          <button type="button" class="btn" id="review-refresh">Refresh</button>
+          <span id="review-summary" class="hint-inline"></span>
+        </div>
+        <div id="review-list"></div>
+      </section>
+
       <section id="rankings" class="panel" role="tabpanel">
         <h2>Vendor Rankings</h2>
         <p class="hint">
@@ -311,6 +331,6 @@
     </main>
 
     <footer>CIVSA · Phase 1 · IIIT Dharwad</footer>
-    <script src="/static/app.js?v=3"></script>
+    <script src="/static/app.js?v=8"></script>
   </body>
 </html>

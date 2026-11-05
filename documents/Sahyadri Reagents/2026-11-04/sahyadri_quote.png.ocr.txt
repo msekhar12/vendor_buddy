@@ -1,0 +1,33 @@
+SPECIMEN - NOT AREAL DOCUMENT
+
+Sahyadri Reagents Pvt Ltd
+
+Bhosari MIDC, Pune - 411026, Maharashtra
+Email: sales@sahyadrireagents.example
+
+QUOTATION
+
+Quotation No.: SRP/Q/2026/077
+Date: 18 October 2026
+Validity: 30 days from date of issue
+
+To: Indian Institute of Information Technology Dharwad
+Procurement Cell, Kurubarahalli, Dharwad - 580009, Karnataka
+
+SKU Description Unit Qty Unit Price (INR) Line Total (INR)
+SR-15 Ethanol Absolute, AR grade, 2.5 L bottle 12 1,610 19,320
+Subtotal 19,320
+GST @ 18% 3,478
+Grand Total 22,798
+
+Commercial & Delivery Terms
+Payment Terms: 30 days net from date of invoice
+Delivery Lead Time: 7 to 10 working days from receipt of PO
+Freight: FOR destination, Dharwad
+Packaging: HDPE bottles in corrugated cartons
+Quality Warranty: CoA with every batch
+
+Certifications: ISO 9001:2015 certified
+
+For Sahyadri Reagents Pvt Ltd
+Neha Kulkarni, Authorised Signatory
